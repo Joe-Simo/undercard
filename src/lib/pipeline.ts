@@ -5,16 +5,10 @@ import { findCity, nearestCity } from "./cities";
 import { env } from "./env";
 import { writeJson } from "./llm";
 import { getQloo, type EntityType } from "./qloo";
+import { sizeBand } from "./size";
 import type { Brief, BriefEvent, Entity, OpenerPick, Overlap, ShowInput, SizeBand, TraceStep } from "./types";
 
-/** Capacity to Qloo popularity band (percentile). Small rooms need artists who are not yet huge. */
-export function sizeBand(capacity: number, popularity = 0.5): OpenerPick["sizeBand"] {
-  const ideal = capacity <= 300 ? 0.55 : capacity <= 800 ? 0.68 : capacity <= 2500 ? 0.8 : 0.9;
-  if (popularity > ideal + 0.15) return "too big";
-  if (popularity > ideal + 0.05) return "stretch";
-  if (popularity < ideal - 0.3) return "too small";
-  return "right-size";
-}
+export { sizeBand };
 
 export function rankBySize<T extends Entity>(entities: T[], capacity: number) {
   const banded = entities.map((e) => ({ ...e, sizeBand: sizeBand(capacity, e.popularity) as SizeBand }));
@@ -110,7 +104,7 @@ export async function buildBrief(input: ShowInput, emit: (e: BriefEvent) => void
   input = { ...input, headlinerId: headliner.id };
   const sig = [headliner.id];
 
-  const local = await step(`Artists this audience loves in ${input.city}`, "qloo", "GET /v2/insights filter.type=artist + filter.location.query", () =>
+  const local = await step(`Artists this audience loves in ${input.city}`, "qloo", "GET /v2/insights filter.type=artist + signal.location.query", () =>
     qloo.insights({ type: "urn:entity:artist", signalEntities: sig, locationQuery: input.city, take: 15 }),
     (r) => `${r.length} affinity-ranked artists`);
 
@@ -130,7 +124,7 @@ export async function buildBrief(input: ShowInput, emit: (e: BriefEvent) => void
   const ranked = rankBySize(local.filter((e) => e.id !== headliner.id), input.capacity);
   const ordered = ranked.slice(0, 5);
   const bench = ranked.slice(5, 15);
-  const overlaps = await step("Audience overlap: headliner vs. each opener", "qloo", "GET /v2/insights/compare", () => overlapFor(headliner.id, ordered.map((o) => o.id)), (m) => `${m.size} of ${ordered.length} scored`);
+  const overlaps = await step("Audience overlap: headliner vs. each opener", "qloo", "GET /v2/analysis/compare", () => overlapFor(headliner.id, ordered.map((o) => o.id)), (m) => `${m.size} of ${ordered.length} scored`);
 
   const evidence = JSON.stringify({ headliner: headliner.name, city: input.city, capacity: input.capacity, openers: ordered.map((o) => ({ name: o.name, affinity: o.affinity, popularity: o.popularity, sizeBand: o.sizeBand, overlap: overlaps.get(o.id)?.score, sharedTags: overlaps.get(o.id)?.sharedTags })), places: places.map((p) => p.name), brands: brands.map((b) => b.name), podcasts: podcasts.map((p) => p.name), tv: tv.map((t) => t.name) });
 
@@ -178,7 +172,7 @@ export async function buildBrief(input: ShowInput, emit: (e: BriefEvent) => void
     adPlan: { podcasts, tv, summary: writeup.value.adSummary },
     audience,
     copy: { social: writeup.value.social, tagline: writeup.value.tagline },
-    gutCheck: { llmOnly: gut.value.picks, note: "Same question, no Qloo: famous names, no local signal, no sense of room size." },
+    gutCheck: { llmOnly: gut.value.picks, note: "Same question, asked without Qloo data. Compare the two lists side by side." },
     bench,
     center: (() => { const c = findCity(input.city); if (c) return { lat: c.lat, lng: c.lng }; const h = heat[0]; return h ? { lat: h.lat, lng: h.lng } : { lat: 39.5, lng: -96 }; })(),
     heat: heat.slice(0, 60).map((c) => ({ lat: c.lat, lng: c.lng, affinity: c.affinity })),

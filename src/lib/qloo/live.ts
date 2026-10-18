@@ -7,9 +7,14 @@ type Json = Record<string, unknown>;
 
 /**
  * Live Qloo client for the hackathon environment.
- * Docs: https://docs.qloo.com/reference/qloo-llm-hackathon-developer-guide
+ * Docs: https://docs.qloo.com/reference/qloo-llm-hackathon-developer-guide and
+ * https://github.com/qloo/docs-public/tree/main/reference (parameters.md, available-parameters-by-entity-type.md).
  * GET only, key in X-Api-Key, base URL hackathon.api.qloo.com. Invalid params are silently ignored,
- * so every call here uses only documented parameters.
+ * so every call here uses only documented parameters, and each one is listed in README "Qloo calls".
+ *
+ * Location: `filter.location.*` is documented only for places, destinations, and heatmaps. For
+ * artists, brands, podcasts, and TV the documented way to localize taste is `signal.location.query`
+ * (insights-with-location-use-case.md), so non-place types use that instead.
  * Responses are cached server-side (allowed by Qloo) and never written to the repository.
  */
 export class LiveQlooClient implements QlooClient {
@@ -36,7 +41,7 @@ export class LiveQlooClient implements QlooClient {
     const data = await this.get("/v2/insights", {
       "filter.type": opts.type,
       "signal.interests.entities": opts.signalEntities.join(","),
-      "filter.location.query": opts.locationQuery,
+      [opts.type === "urn:entity:place" || opts.type === "urn:entity:destination" ? "filter.location.query" : "signal.location.query"]: opts.locationQuery,
       "filter.popularity.max": opts.popularityMax,
       "filter.popularity.min": opts.popularityMin,
       take: opts.take ?? 10,
@@ -61,21 +66,21 @@ export class LiveQlooClient implements QlooClient {
   }
 
   /**
-   * TODO(verify on key arrival): parameter names for /v2/insights/compare follow the documented
-   * a./b. signal convention. The response is parsed defensively; if the shape differs, the
-   * pipeline falls back to tag overlap computed from insights results.
+   * Audience overlap between two entities: GET /v2/analysis/compare with the documented
+   * `a.signal.interests.entities` and `b.signal.interests.entities` (reference/analysis-compare.md).
+   * The docs do not publish a response schema, so the parser accepts the shapes Qloo uses elsewhere
+   * (results.tags / results.entities with query.affinity or score). To verify live on key arrival.
    */
   async compare(a: string, b: string): Promise<Overlap> {
-    const data = await this.get("/v2/insights/compare", {
+    const data = await this.get("/v2/analysis/compare", {
       "a.signal.interests.entities": a,
       "b.signal.interests.entities": b,
-      "filter.type": "urn:tag",
-      take: 10,
     });
-    const results = (data.results ?? {}) as Json;
+    const results = (data.results ?? data) as Json;
     const tags = ((results.tags as Json[]) ?? (results.entities as Json[]) ?? []).slice(0, 10);
     const shared = tags.map((t) => String(t.name ?? "")).filter(Boolean);
-    const scores = tags.map((t) => Number(((t.query ?? {}) as Json).affinity ?? ((t.query ?? {}) as Json).score ?? 0)).filter((n) => Number.isFinite(n));
+    const scoreOf = (t: Json) => { const q = (t.query ?? {}) as Json; return Number(q.affinity ?? q.score ?? t.score ?? NaN); };
+    const scores = tags.map(scoreOf).filter((n) => Number.isFinite(n));
     const score = scores.length ? Math.max(0, Math.min(1, scores.reduce((x, y) => x + y, 0) / scores.length)) : shared.length / 10;
     return { score, sharedTags: shared.slice(0, 5) };
   }

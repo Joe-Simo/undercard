@@ -10,7 +10,8 @@
     "postinstall": "node scripts/copy-maplibre-worker.mjs",
     "featured": "node scripts/build-featured.mjs",
     "test": "vitest run",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "benchmark": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/benchmark.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -39,6 +40,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.5"
   },

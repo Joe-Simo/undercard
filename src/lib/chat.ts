@@ -73,7 +73,7 @@ export async function runChat(brief: Brief, message: string, emit: (e: BriefEven
   let redirect: string | undefined;
 
   const rescore = async (openers: (Omit<OpenerPick, "rationale"> & { rationale?: string })[]) => {
-    const ov = await step("Audience overlap for new picks", "qloo", "GET /v2/insights/compare", () => overlapFor(brief.headliner.id, openers.map((o) => o.id)), (m) => `${m.size} scored`);
+    const ov = await step("Audience overlap for new picks", "qloo", "GET /v2/analysis/compare", () => overlapFor(brief.headliner.id, openers.map((o) => o.id)), (m) => `${m.size} scored`);
     return openers.map((o) => ({ ...o, overlap: ov.get(o.id)?.score ?? o.overlap, sharedTags: ov.get(o.id)?.sharedTags ?? o.sharedTags, rationale: o.rationale || `Strong affinity with ${brief.headliner.name}'s audience in ${brief.input.city} (affinity ${Math.round((o.affinity ?? 0) * 100)}), ${o.sizeBand} for a ${brief.input.capacity}-cap room.` }));
   };
 
