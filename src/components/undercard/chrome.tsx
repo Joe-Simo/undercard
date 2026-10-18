@@ -30,7 +30,7 @@ export function ModeBanner({ modes }: { modes: { qloo: Mode; llm: Mode } }) {
         <FlaskConical className="size-4 shrink-0" />
         <span>
           <strong>Demo mode:</strong>{" "}
-          {[modes.qloo === "mock" ? "Qloo data is simulated with invented names (no QLOO_API_KEY yet)" : null, modes.llm === "mock" ? "writing is templated (no NEBIUS_API_KEY)" : null].filter(Boolean).join("; ")}.
+          {[modes.qloo === "mock" ? "Qloo data is simulated with invented names (no QLOO_API_KEY yet)" : null, modes.llm === "mock" ? "writing is templated (no GROQ_API_KEY or GITHUB_MODELS_TOKEN)" : null].filter(Boolean).join("; ")}.
         </span>
       </div>
     </div>
