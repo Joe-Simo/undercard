@@ -39,27 +39,29 @@ export function BriefChat({ briefId, initial, openers }: { briefId: string; init
           router.refresh();
         }
       });
+    } catch {
+      toast.error("Could not reach Undercard. Check your connection and try again.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <section className="flex flex-col rounded-2xl border border-white/10 bg-card p-5">
+    <section className="flex flex-col rounded-2xl border border-border bg-card p-5">
       <h2 className="flex items-center gap-2 font-semibold"><Sparkles className="size-4 text-brand" /> Ask Undercard</h2>
       <p className="mt-1 text-xs text-muted-foreground">Edit the brief in plain English. Every change is re-checked against Qloo.</p>
       <div className="mt-3 max-h-72 flex-1 space-y-2 overflow-y-auto">
         {msgs.map((m, i) => (
-          <div key={i} className={cn("max-w-[90%] rounded-xl px-3 py-2 text-sm", m.role === "user" ? "ml-auto bg-brand/15" : "bg-white/5")}>
+          <div key={i} className={cn("max-w-[90%] rounded-xl px-3 py-2 text-sm", m.role === "user" ? "ml-auto bg-brand/15" : "bg-surface")}>
             {m.text}
             {m.meta && <span className="mt-1 block text-[10px] text-muted-foreground">{m.meta}</span>}
           </div>
         ))}
-        {busy && steps.length > 0 && <div className="rounded-xl bg-white/[0.03] p-2"><TraceList steps={steps} compact /></div>}
+        {busy && steps.length > 0 && <div className="rounded-xl bg-surface p-2"><TraceList steps={steps} compact /></div>}
       </div>
       {!msgs.length && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {suggestions.map((s) => <button key={s} type="button" onClick={() => send(s)} className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-brand/50 hover:text-foreground">{s}</button>)}
+          {suggestions.map((s) => <button key={s} type="button" onClick={() => send(s)} className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground transition hover:border-brand/50 hover:text-foreground">{s}</button>)}
         </div>
       )}
       <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); send(text); }}>

@@ -33,7 +33,7 @@ export default async function Home() {
           <h2 className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-muted-foreground"><Star className="size-4 text-brand" /> Featured briefs</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             {FEATURED.map((f) => (
-              <Link key={f.slug} href={`/featured/${f.slug}`} prefetch={false} className="group rounded-xl border border-white/10 bg-gradient-to-br from-brand/10 to-transparent p-4 transition hover:border-brand/50">
+              <Link key={f.slug} href={`/featured/${f.slug}`} prefetch={false} className="group rounded-xl border border-border bg-gradient-to-br from-brand/10 to-transparent p-4 transition hover:border-brand/50">
                 <p className="font-semibold">{f.title}</p>
                 <p className="text-sm text-muted-foreground">{f.blurb}</p>
                 <p className="mt-3 inline-flex items-center gap-1 text-xs text-brand">Open brief <ArrowRight className="size-3 transition group-hover:translate-x-0.5" /></p>
@@ -46,7 +46,7 @@ export default async function Home() {
             <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Recent briefs</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {briefs.map((b) => (
-                <Link key={b.id} href={`/brief/${b.id}`} className="rounded-xl border border-white/10 bg-card p-4 transition hover:border-brand/50">
+                <Link key={b.id} href={`/brief/${b.id}`} className="rounded-xl border border-border bg-card p-4 transition hover:border-brand/50">
                   <p className="font-semibold">{b.headliner.name}</p>
                   <p className="text-sm text-muted-foreground">{b.input.city} · {b.input.capacity} cap</p>
                   <p className="mt-2 truncate text-xs text-muted-foreground">with {b.openers.slice(0, 2).map((o) => o.name).join(", ")}</p>

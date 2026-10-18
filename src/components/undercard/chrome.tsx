@@ -13,7 +13,7 @@ export function Logo() {
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/5 bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Logo />
         <span className="text-xs text-muted-foreground">Taste data by Qloo</span>
@@ -30,7 +30,7 @@ export function ModeBanner({ modes }: { modes: { qloo: Mode; llm: Mode } }) {
         <FlaskConical className="size-4 shrink-0" />
         <span>
           <strong>Demo mode:</strong>{" "}
-          {[modes.qloo === "mock" ? "Qloo data is simulated with invented names (no QLOO_API_KEY yet)" : null, modes.llm === "mock" ? "writing is templated (no GROQ_API_KEY or GITHUB_MODELS_TOKEN)" : null].filter(Boolean).join("; ")}.
+          {[modes.qloo === "mock" ? "Qloo results are simulated, with invented openers and partners (no QLOO_API_KEY yet)" : null, modes.llm === "mock" ? "writing is templated (no LLM key set)" : null].filter(Boolean).join("; ")}.
         </span>
       </div>
     </div>
