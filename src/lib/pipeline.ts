@@ -84,6 +84,9 @@ export function resolveHeadliner(query: string, results: Entity[]): { pick?: Ent
  * Build a show brief. Returns null when the headliner is ambiguous: a "choose" event carries the candidates,
  * and the caller runs again with input.headlinerId set. Pass autoPick to take the best match instead.
  */
+/** Qloo scores are 0..1; the buyer and the model both see them as whole numbers out of 100. */
+const score100 = (x?: number) => (typeof x === "number" ? Math.round(x * 100) : undefined);
+
 export async function buildBrief(input: ShowInput, emit: (e: BriefEvent) => void, opts: { id?: string; featured?: string; autoPick?: boolean } = {}): Promise<Brief | null> {
   const qloo = getQloo();
   const mocked = qloo.name === "mock";
@@ -126,11 +129,11 @@ export async function buildBrief(input: ShowInput, emit: (e: BriefEvent) => void
   const bench = ranked.slice(5, 15);
   const overlaps = await step("Audience overlap: headliner vs. each opener", "qloo", "GET /v2/analysis/compare", () => overlapFor(headliner.id, ordered.map((o) => o.id)), (m) => `${m.size} of ${ordered.length} scored`);
 
-  const evidence = JSON.stringify({ headliner: headliner.name, city: input.city, capacity: input.capacity, openers: ordered.map((o) => ({ name: o.name, affinity: o.affinity, popularity: o.popularity, sizeBand: o.sizeBand, overlap: overlaps.get(o.id)?.score, sharedTags: overlaps.get(o.id)?.sharedTags })), places: places.map((p) => p.name), brands: brands.map((b) => b.name), podcasts: podcasts.map((p) => p.name), tv: tv.map((t) => t.name) });
+  const evidence = JSON.stringify({ headliner: headliner.name, city: input.city, capacity: input.capacity, openers: ordered.map((o) => ({ name: o.name, affinity: score100(o.affinity), popularity: score100(o.popularity), sizeBand: o.sizeBand, overlap: score100(overlaps.get(o.id)?.score), sharedTags: overlaps.get(o.id)?.sharedTags })), places: places.map((p) => p.name), brands: brands.map((b) => b.name), podcasts: podcasts.map((p) => p.name), tv: tv.map((t) => t.name) });
 
   const writeup = await step("Write the show brief from Qloo evidence", "llm", undefined, () =>
     writeJson({
-      system: "You are a talent buyer for independent venues. Write short, specific rationales and marketing copy. You may ONLY mention entities that appear in the evidence JSON. Never invent artists, places, or numbers.",
+      system: "You are a talent buyer for independent venues. Write short, specific rationales and marketing copy in plain, fully punctuated sentences. You may ONLY mention entities that appear in the evidence JSON. Never invent artists, places, or numbers. Scores are 0 to 100, the scale the buyer sees. Each opener rationale is one sentence under 25 words that explains the fit from its shared tags and size band; the scores are already shown beside it, so do not repeat them, and do not call an act the highest or best unless the evidence shows it.",
       prompt: evidence,
       schema: Writeup,
       mock: () => ({

@@ -25,7 +25,7 @@ const titleOf = (b: Brief) => `${b.headliner.name} in ${b.input.city}`;
 
 export async function generateMetadata(props: PageProps<"/brief/[id]">): Promise<Metadata> {
   const b = await getBrief((await props.params).id);
-  if (!b) return { title: "Show brief | Undercard" };
+  if (!b) return { title: "Brief not found | Undercard" };
   // The title doubles as the default file name when the brief is saved as a PDF.
   const title = `${titleOf(b)}: Undercard show brief`;
   const description = `Who opens for ${b.headliner.name} in a ${b.input.capacity}-cap room in ${b.input.city}, ranked on Qloo taste data${b.sample ? " (simulated sample data)" : ""}.`;
@@ -44,7 +44,7 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 print:max-w-none print:px-0 print:py-0">
         <p className="hidden text-xs uppercase tracking-wider text-muted-foreground print:block">Undercard show brief · Taste data by Qloo · {new Date(b.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" })}</p>
         <div className="flex items-center justify-between gap-3 print:hidden">
-          <Link href="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> New brief</Link>
+          <Link href="/" className="-my-2 inline-flex items-center gap-1 py-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> New brief</Link>
           <BriefActions path={`/brief/${b.id}`} title={`${titleOf(b)}: Undercard show brief`} />
         </div>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4 print:mt-2">

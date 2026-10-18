@@ -41,6 +41,9 @@ export interface ChatResult {
   redirect?: string;
 }
 
+/** Qloo scores are 0..1; the model sees them on the same 0 to 100 scale as the buyer. */
+const pct = (x?: number) => (typeof x === "number" ? Math.round(x * 100) : undefined);
+
 export async function runChat(brief: Brief, message: string, emit: (e: BriefEvent) => void): Promise<ChatResult> {
   const qloo = getQloo();
   const llm = env.llm();
@@ -48,19 +51,19 @@ export async function runChat(brief: Brief, message: string, emit: (e: BriefEven
   const summary = JSON.stringify({
     input: brief.input,
     headliner: brief.headliner.name,
-    openers: brief.openers.map((o, i) => ({ slot: i + 1, name: o.name, affinity: o.affinity, sizeBand: o.sizeBand, overlap: o.overlap })),
+    openers: brief.openers.map((o, i) => ({ slot: i + 1, name: o.name, affinity: pct(o.affinity), sizeBand: o.sizeBand, overlap: pct(o.overlap) })),
     routing: brief.routing.map((r) => r.city),
-    places: brief.partners.places.map((p) => ({ name: p.name, affinity: p.affinity })),
-    brands: brief.partners.brands.map((b) => ({ name: b.name, affinity: b.affinity })),
-    podcasts: brief.adPlan.podcasts.map((p) => ({ name: p.name, affinity: p.affinity })),
-    tv: brief.adPlan.tv.map((t) => ({ name: t.name, affinity: t.affinity })),
-    bench: (brief.bench ?? []).slice(0, 5).map((b) => ({ name: b.name, affinity: b.affinity, sizeBand: b.sizeBand })),
+    places: brief.partners.places.map((p) => ({ name: p.name, affinity: pct(p.affinity) })),
+    brands: brief.partners.brands.map((b) => ({ name: b.name, affinity: pct(b.affinity) })),
+    podcasts: brief.adPlan.podcasts.map((p) => ({ name: p.name, affinity: pct(p.affinity) })),
+    tv: brief.adPlan.tv.map((t) => ({ name: t.name, affinity: pct(t.affinity) })),
+    bench: (brief.bench ?? []).slice(0, 5).map((b) => ({ name: b.name, affinity: pct(b.affinity), sizeBand: b.sizeBand })),
     audience: brief.audience.summary,
   });
 
   const plan = await step("Plan the edit", "llm", undefined, () =>
     writeJson({
-      system: "You are Undercard, a talent-buying agent. Decide which single action fulfils the user's request about this show brief. Tools: swap_opener (replace one opener with the next best Qloo candidate), smaller (re-rank toward less famous acts), bigger (toward bigger draws), change_city, change_capacity, answer (answer a question using ONLY the brief JSON; affinity is 0..1 audience over-index from Qloo, higher means a better fit; never invent names or numbers). Keep replies under 80 words.",
+      system: "You are Undercard, a talent-buying agent. Decide which single action fulfils the user's request about this show brief. Tools: swap_opener (replace one opener with the next best Qloo candidate), smaller (re-rank toward less famous acts), bigger (toward bigger draws), change_city, change_capacity, answer (answer a question using ONLY the brief JSON; affinity and overlap are 0 to 100 Qloo scores, higher means a better fit; never invent names or numbers). Keep replies under 80 words.",
       prompt: `Brief: ${summary}\nUser: ${message}`,
       schema: Plan,
       mock: () => mockPlan(message, brief),
