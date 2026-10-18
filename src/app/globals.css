@@ -147,3 +147,28 @@
   50% { opacity: 0.35; }
 }
 .animate-pulse-dot { animation: pulse-dot 1.1s ease-in-out infinite; }
+
+/* Print and "Save as PDF": a clean, light, paper version of the brief. */
+@media print {
+  @page { size: letter; margin: 14mm 14mm 16mm; }
+  :root, .dark {
+    --background: #fff;
+    --foreground: #18181b;
+    --card: #fff;
+    --card-foreground: #18181b;
+    --muted-foreground: #52525b;
+    --border: #e4e4e7;
+    --surface: #f4f4f5;
+    --primary: #18181b;
+    --primary-foreground: #fff;
+    --color-brand: oklch(0.6 0.19 40);
+  }
+  html, body { background: #fff !important; color: var(--foreground); font-size: 12px; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none !important; }
+  section, li, blockquote { break-inside: avoid; }
+  h1, h2, h3 { break-after: avoid; }
+  a { color: inherit; text-decoration: none; }
+  [data-sonner-toaster], .maplibregl-ctrl-top-right, nextjs-portal { display: none !important; }
+  /* The map canvas keeps its on-screen pixel size; scale it to the paper width instead of cropping. */
+  .maplibregl-canvas { width: 100% !important; height: 100% !important; object-fit: cover; }
+}
