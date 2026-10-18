@@ -2,12 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CheckCircle2, Loader2, Wand2 } from "lucide-react";
+import { Loader2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { readNdjson } from "@/lib/ndjson";
 import type { BriefEvent, TraceStep } from "@/lib/types";
+import { TraceList } from "./trace-list";
 
 export function BriefForm() {
   const router = useRouter();
@@ -22,23 +24,11 @@ export function BriefForm() {
     try {
       const res = await fetch("/api/brief", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       if (!res.ok || !res.body) return toast.error((await res.json().catch(() => ({}))).error ?? "Failed");
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const l of lines) {
-          if (!l.trim()) continue;
-          const ev = JSON.parse(l) as BriefEvent;
-          if (ev.type === "step") setSteps((p) => { const i = p.findIndex((s) => s.id === ev.step.id); if (i < 0) return [...p, ev.step]; const n = p.slice(); n[i] = ev.step; return n; });
-          if (ev.type === "error") toast.error(ev.message);
-          if (ev.type === "done") router.push(`/brief/${ev.brief.id}`);
-        }
-      }
+      await readNdjson<BriefEvent>(res, (ev) => {
+        if (ev.type === "step") setSteps((p) => { const i = p.findIndex((s) => s.id === ev.step.id); if (i < 0) return [...p, ev.step]; const n = p.slice(); n[i] = ev.step; return n; });
+        if (ev.type === "error") toast.error(ev.message);
+        if (ev.type === "done") router.push(`/brief/${ev.brief.id}`);
+      });
     } finally {
       setBusy(false);
     }
@@ -62,17 +52,7 @@ export function BriefForm() {
         <Button type="submit" size="lg" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Wand2 />} Build brief</Button>
       </form>
       {steps.length > 0 && (
-        <ol className="mt-4 space-y-1 border-t border-white/5 pt-3 text-sm">
-          {steps.map((s) => (
-            <li key={s.id} className="flex items-center gap-2">
-              {s.status === "running" ? <Loader2 className="size-3.5 animate-spin text-brand" /> : <CheckCircle2 className="size-3.5 text-emerald-400" />}
-              <span>{s.label}</span>
-              {s.endpoint && <code className="hidden rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-muted-foreground md:inline">{s.endpoint}</code>}
-              {s.mocked && <span className="text-[10px] text-amber-300">simulated</span>}
-              {s.detail && <span className="ml-auto truncate text-xs text-muted-foreground">{s.detail}</span>}
-            </li>
-          ))}
-        </ol>
+        <div className="mt-4 border-t border-white/5 pt-3"><TraceList steps={steps} /></div>
       )}
     </div>
   );

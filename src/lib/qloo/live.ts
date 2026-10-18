@@ -1,6 +1,6 @@
 import "server-only";
 import { env } from "../env";
-import type { AudienceShape, Entity } from "../types";
+import type { AudienceShape, Entity, Overlap } from "../types";
 import type { EntityType, HeatCell, QlooClient } from "./types";
 
 type Json = Record<string, unknown>;
@@ -32,12 +32,13 @@ export class LiveQlooClient implements QlooClient {
     return ((data.results as Json[]) ?? []).map(toEntity);
   }
 
-  async insights(opts: { type: EntityType; signalEntities: string[]; locationQuery?: string; take?: number; popularityMax?: number }) {
+  async insights(opts: { type: EntityType; signalEntities: string[]; locationQuery?: string; take?: number; popularityMax?: number; popularityMin?: number }) {
     const data = await this.get("/v2/insights", {
       "filter.type": opts.type,
       "signal.interests.entities": opts.signalEntities.join(","),
       "filter.location.query": opts.locationQuery,
       "filter.popularity.max": opts.popularityMax,
+      "filter.popularity.min": opts.popularityMin,
       take: opts.take ?? 10,
     });
     const results = data.results as Json | undefined;
@@ -57,6 +58,26 @@ export class LiveQlooClient implements QlooClient {
       const q = (c.query ?? {}) as Json;
       return { lat: Number(loc.latitude), lng: Number(loc.longitude), affinity: Number(q.affinity ?? 0), popularity: Number(q.popularity ?? 0) };
     });
+  }
+
+  /**
+   * TODO(verify on key arrival): parameter names for /v2/insights/compare follow the documented
+   * a./b. signal convention. The response is parsed defensively; if the shape differs, the
+   * pipeline falls back to tag overlap computed from insights results.
+   */
+  async compare(a: string, b: string): Promise<Overlap> {
+    const data = await this.get("/v2/insights/compare", {
+      "a.signal.interests.entities": a,
+      "b.signal.interests.entities": b,
+      "filter.type": "urn:tag",
+      take: 10,
+    });
+    const results = (data.results ?? {}) as Json;
+    const tags = ((results.tags as Json[]) ?? (results.entities as Json[]) ?? []).slice(0, 10);
+    const shared = tags.map((t) => String(t.name ?? "")).filter(Boolean);
+    const scores = tags.map((t) => Number(((t.query ?? {}) as Json).affinity ?? ((t.query ?? {}) as Json).score ?? 0)).filter((n) => Number.isFinite(n));
+    const score = scores.length ? Math.max(0, Math.min(1, scores.reduce((x, y) => x + y, 0) / scores.length)) : shared.length / 10;
+    return { score, sharedTags: shared.slice(0, 5) };
   }
 
   async demographics(entityId: string): Promise<AudienceShape> {

@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, Megaphone, Mic2, Store, Tv, Users } from "lucide-react";
+import { ArrowLeft, MapPin, Megaphone, Mic2, Route, Store, Tv, Users } from "lucide-react";
+import { BriefChat } from "@/components/undercard/brief-chat";
+import { RouteMap } from "@/components/undercard/route-map";
+import { TraceList } from "@/components/undercard/trace-list";
 import { Header, ModeBanner } from "@/components/undercard/chrome";
 import { GutVsGraph } from "@/components/undercard/gut-vs-graph";
 import { modes } from "@/lib/env";
+import { getOrBuildFeatured } from "@/lib/featured";
 import { getBrief } from "@/lib/store";
 import type { Entity } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -17,7 +21,7 @@ const BAND: Record<string, string> = {
 
 export default async function BriefPage(props: PageProps<"/brief/[id]">) {
   const { id } = await props.params;
-  const b = await getBrief(id);
+  const b = (await getBrief(id)) ?? (id.startsWith("f-") ? await getOrBuildFeatured(id.slice(2)) : null);
   if (!b) notFound();
   return (
     <>
@@ -27,7 +31,7 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
         <Link href="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> New brief</Link>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-brand">Show brief{b.sample ? " · simulated data" : ""}</p>
+            <p className="text-sm text-brand">{b.featured ? "Featured brief" : "Show brief"}{b.sample ? " · simulated data" : ""}</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">{b.headliner.name}</h1>
             <p className="mt-1 text-muted-foreground">{b.input.city} · {b.input.capacity}-cap room</p>
           </div>
@@ -47,19 +51,33 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
                       <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", BAND[o.sizeBand])}>{o.sizeBand}</span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{o.rationale}</p>
-                    <div className="mt-2 flex gap-4 text-xs text-muted-foreground tabular-nums">
+                    <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground tabular-nums">
                       <Meter label="Local affinity" v={o.affinity} />
+                      <Meter label="Audience overlap" v={o.overlap} />
                       <Meter label="Popularity" v={o.popularity} />
                     </div>
+                    {!!o.sharedTags?.length && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {o.sharedTags.map((t) => <span key={t} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-muted-foreground">{t}</span>)}
+                      </div>
+                    )}
                   </div>
                 </li>
               ))}
             </ol>
           </section>
           <div className="space-y-6">
+            <BriefChat key={`${b.id}-${b.chat?.length ?? 0}`} briefId={b.id} initial={b.chat ?? []} openers={b.openers.map((o) => o.name)} />
             <GutVsGraph brief={b} />
-            <section className="rounded-2xl border border-white/10 bg-card p-5">
-              <h2 className="flex items-center gap-2 font-semibold"><MapPin className="size-4 text-brand" /> Routing</h2>
+          </div>
+        </div>
+
+        <section className="mt-6 rounded-2xl border border-white/10 bg-card p-5">
+          <h2 className="flex items-center gap-2 font-semibold"><MapPin className="size-4 text-brand" /> Where this taste lives</h2>
+          <div className="mt-4 grid gap-5 lg:grid-cols-[1.6fr_1fr]">
+            {b.center ? <RouteMap brief={{ center: b.center, heat: b.heat ?? [], routing: b.routing, input: b.input }} /> : <div />}
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-semibold"><Route className="size-4 text-brand" /> Suggested routing</h3>
               <ul className="mt-3 space-y-2">
                 {b.routing.map((r) => (
                   <li key={r.city} className="text-sm">
@@ -68,10 +86,10 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-xs text-muted-foreground">From the Qloo heatmap of this headliner&apos;s audience. Map view coming next.</p>
-            </section>
+              <p className="mt-3 text-xs text-muted-foreground">From the Qloo heatmap of this headliner&apos;s audience within about 300 miles. Brighter means stronger affinity.</p>
+            </div>
           </div>
-        </div>
+        </section>
 
         <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <EntityList icon={<Store className="size-4 text-brand" />} title="Pre-show partners" items={b.partners.places} />
@@ -102,6 +120,12 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
             <p className="mt-1 rounded-lg bg-white/5 p-3 text-sm">{b.copy.social}</p>
           </section>
         </div>
+        {!!b.trace?.length && (
+          <details className="mt-6 rounded-2xl border border-white/10 bg-card p-5">
+            <summary className="cursor-pointer text-sm font-semibold">How this brief was built ({b.trace.length} steps, writing by {b.llm === "template" ? "templates" : b.llm})</summary>
+            <div className="mt-3"><TraceList steps={b.trace} /></div>
+          </details>
+        )}
         <p className="mt-8 text-center text-xs text-muted-foreground">Qloo results describe aggregate taste affinities, not predictions about any individual.</p>
       </main>
     </>

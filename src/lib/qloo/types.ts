@@ -1,4 +1,4 @@
-import type { AudienceShape, Entity } from "../types";
+import type { AudienceShape, Entity, Overlap } from "../types";
 
 export type EntityType =
   | "urn:entity:artist"
@@ -29,7 +29,10 @@ export interface QlooClient {
     locationQuery?: string;
     take?: number;
     popularityMax?: number;
+    popularityMin?: number;
   }): Promise<Entity[]>;
+  /** Audience overlap between two entities (GET /v2/insights/compare). */
+  compare(a: string, b: string): Promise<Overlap>;
   heatmap(opts: { signalEntities: string[]; locationQuery: string; radiusMeters?: number }): Promise<HeatCell[]>;
   demographics(entityId: string): Promise<AudienceShape>;
 }

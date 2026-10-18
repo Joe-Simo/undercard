@@ -46,3 +46,6 @@ next-env.d.ts
 .data
 AGENTS.md
 CLAUDE.md
+
+# copied at install time
+/public/maplibre

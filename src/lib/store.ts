@@ -24,7 +24,7 @@ export async function listBriefs(limit = 6): Promise<Brief[]> {
   try {
     const files = (await fs.readdir(dir)).filter((f) => f.endsWith(".json"));
     const all = await Promise.all(files.map(async (f) => JSON.parse(await fs.readFile(path.join(dir, f), "utf8")) as Brief));
-    return all.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
+    return all.filter((b) => !b.featured).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
   } catch {
     return [];
   }

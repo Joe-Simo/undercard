@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "node scripts/copy-maplibre-worker.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -14,6 +15,7 @@
     "cn": "^0.5.0",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.59.0",
+    "maplibre-gl": "^6.14.0",
     "next": "16.4.2",
     "next-themes": "^0.4.6",
     "react": "19.3.0",

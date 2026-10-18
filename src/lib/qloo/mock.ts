@@ -1,5 +1,6 @@
 import "server-only";
-import type { AudienceShape, Entity } from "../types";
+import { CITIES, findCity } from "../cities";
+import type { AudienceShape, Entity, Overlap } from "../types";
 import type { EntityType, HeatCell, QlooClient } from "./types";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -47,7 +48,7 @@ export class MockQlooClient implements QlooClient {
     return [{ id: `mock-${slug(query)}`, name: query, type, popularity: 0.9, tags: ["simulated"] }];
   }
 
-  async insights(opts: { type: EntityType; signalEntities: string[]; locationQuery?: string; take?: number; popularityMax?: number }): Promise<Entity[]> {
+  async insights(opts: { type: EntityType; signalEntities: string[]; locationQuery?: string; take?: number; popularityMax?: number; popularityMin?: number }): Promise<Entity[]> {
     await sleep(200 + Math.random() * 200);
     const rnd = seeded(`${opts.type}|${opts.signalEntities.join()}|${opts.locationQuery ?? ""}`);
     const pool = POOL[opts.type] ?? ["Sample entity"];
@@ -61,13 +62,29 @@ export class MockQlooClient implements QlooClient {
         tags: ["simulated"],
       }))
       .filter((e) => opts.popularityMax == null || (e.popularity ?? 0) <= opts.popularityMax)
+      .filter((e) => opts.popularityMin == null || (e.popularity ?? 0) >= opts.popularityMin)
       .slice(0, opts.take ?? 10);
   }
 
   async heatmap(opts: { signalEntities: string[]; locationQuery: string }): Promise<HeatCell[]> {
     await sleep(250);
     const rnd = seeded(`heat|${opts.signalEntities.join()}|${opts.locationQuery}`);
-    return NEARBY.default.map((c) => ({ lat: c.lat, lng: c.lng, affinity: Math.round((0.3 + rnd() * 0.7) * 100) / 100 }));
+    const home = findCity(opts.locationQuery) ?? { lat: 38.97, lng: -95.24 };
+    const near = CITIES.filter((c) => Math.hypot(c[1] - home.lat, c[2] - home.lng) < 5.5);
+    const cells: HeatCell[] = [];
+    for (const c of near) {
+      const base = 0.3 + rnd() * 0.7;
+      for (let i = 0; i < 5; i++) cells.push({ lat: c[1] + (rnd() - 0.5) * 0.5, lng: c[2] + (rnd() - 0.5) * 0.5, affinity: Math.round(Math.max(0.1, base - i * 0.08) * 100) / 100 });
+    }
+    return cells.sort((a, b) => b.affinity - a.affinity);
+  }
+
+  async compare(a: string, b: string): Promise<Overlap> {
+    await sleep(120);
+    const rnd = seeded(`cmp|${a}|${b}`);
+    const tags = ["dream pop", "indie rock", "lo-fi", "synth", "folk", "garage", "shoegaze", "alt country"];
+    const shared = tags.filter(() => rnd() > 0.6).slice(0, 4);
+    return { score: Math.round((0.35 + rnd() * 0.55) * 100) / 100, sharedTags: shared.length ? shared : ["indie rock"] };
   }
 
   async demographics(entityId: string): Promise<AudienceShape> {

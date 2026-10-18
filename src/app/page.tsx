@@ -2,7 +2,11 @@ import Link from "next/link";
 import { Header, ModeBanner } from "@/components/undercard/chrome";
 import { BriefForm } from "@/components/undercard/brief-form";
 import { modes } from "@/lib/env";
+import { ArrowRight, Star } from "lucide-react";
+import { FEATURED } from "@/lib/featured";
 import { listBriefs } from "@/lib/store";
+
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const briefs = await listBriefs();
@@ -23,6 +27,18 @@ export default async function Home() {
               One headliner and one city in. Out comes a show brief built on real taste data: openers who over-index locally and fit your room, where to route the tour, which bars and brands to partner with, and where to spend the ad money.
             </p>
             <div className="mt-10"><BriefForm /></div>
+          </div>
+        </section>
+        <section className="mx-auto max-w-6xl px-4 pb-12">
+          <h2 className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-muted-foreground"><Star className="size-4 text-brand" /> Featured briefs</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {FEATURED.map((f) => (
+              <Link key={f.slug} href={`/featured/${f.slug}`} prefetch={false} className="group rounded-xl border border-white/10 bg-gradient-to-br from-brand/10 to-transparent p-4 transition hover:border-brand/50">
+                <p className="font-semibold">{f.title}</p>
+                <p className="text-sm text-muted-foreground">{f.blurb}</p>
+                <p className="mt-3 inline-flex items-center gap-1 text-xs text-brand">Open brief <ArrowRight className="size-3 transition group-hover:translate-x-0.5" /></p>
+              </Link>
+            ))}
           </div>
         </section>
         {briefs.length > 0 && (
