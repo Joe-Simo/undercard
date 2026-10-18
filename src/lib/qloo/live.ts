@@ -105,5 +105,11 @@ function toEntity(r: Json): Entity {
     tags: ((r.tags as Json[] | undefined) ?? []).slice(0, 5).map((t) => String(t.name ?? "")).filter(Boolean),
     image: img,
     address: props.address as string | undefined,
+    // Field names vary by entity type, so take the first short human-readable line that exists.
+    description: firstString(r.disambiguation, props.short_description, props.description)?.slice(0, 140),
   };
+}
+
+function firstString(...values: unknown[]) {
+  return values.find((v): v is string => typeof v === "string" && v.trim().length > 0)?.trim();
 }
