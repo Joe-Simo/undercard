@@ -100,7 +100,9 @@ export async function runChat(brief: Brief, message: string, emit: (e: BriefEven
     }
   } else if (plan.action === "change_city" || plan.action === "change_capacity") {
     const input = { ...brief.input, ...(plan.action === "change_city" && plan.city ? { city: plan.city } : {}), ...(plan.action === "change_capacity" && plan.capacity ? { capacity: plan.capacity } : {}) };
-    const fresh = await buildBrief(input, emit);
+    // Keep the same artist (headlinerId) so a city or capacity change never re-asks "which one?".
+    const fresh = await buildBrief({ ...input, headlinerId: brief.headliner.id }, emit, { autoPick: true });
+    if (!fresh) throw new Error("Could not rebuild the brief.");
     fresh.chat = [...(brief.chat ?? []), { role: "user", text: message, at: new Date().toISOString() }, { role: "assistant", text: `Built a new brief for ${input.headliner} in ${input.city} at ${input.capacity} cap.`, meta: `from brief ${brief.id}`, at: new Date().toISOString() }];
     redirect = `/brief/${fresh.id}`;
     return { brief: fresh, redirect };

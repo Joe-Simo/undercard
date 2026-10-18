@@ -69,14 +69,45 @@ const Writeup = z.object({
 
 const GutCheck = z.object({ picks: z.array(z.string()).max(5) });
 
-export async function buildBrief(input: ShowInput, emit: (e: BriefEvent) => void, opts: { id?: string; featured?: string } = {}): Promise<Brief> {
+const norm = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/^the\s+/, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+/**
+ * Decide whether a search is clear enough to run. One exact name match wins (typing "Wednesday" should not
+ * ask about "Wednesday 13"). Several exact matches, or several partial ones, mean we ask the user which one.
+ */
+export function resolveHeadliner(query: string, results: Entity[]): { pick?: Entity; candidates: Entity[] } {
+  const q = norm(query);
+  const plausible = results.filter((r) => { const n = norm(r.name); return !!n && (n === q || n.includes(q) || q.includes(n)); });
+  const exact = plausible.filter((r) => norm(r.name) === q);
+  if (exact.length === 1) return { pick: exact[0], candidates: [] };
+  if (exact.length > 1) return { candidates: exact.slice(0, 4) };
+  if (plausible.length === 1) return { pick: plausible[0], candidates: [] };
+  // Nothing matched the name closely (often a typo): offer Qloo's best guesses instead of silently picking one.
+  return { candidates: (plausible.length ? plausible : results).slice(0, 4) };
+}
+
+/**
+ * Build a show brief. Returns null when the headliner is ambiguous: a "choose" event carries the candidates,
+ * and the caller runs again with input.headlinerId set. Pass autoPick to take the best match instead.
+ */
+export async function buildBrief(input: ShowInput, emit: (e: BriefEvent) => void, opts: { id?: string; featured?: string; autoPick?: boolean } = {}): Promise<Brief | null> {
   const qloo = getQloo();
   const mocked = qloo.name === "mock";
   const llmCfg = env.llm();
   const { steps, step } = makeTracer(mocked, llmCfg.name === "mock", emit);
 
-  const [headliner] = await step(`Resolve "${input.headliner}"`, "qloo", "GET /search", () => qloo.searchEntity(input.headliner, "urn:entity:artist"), (r) => (r[0] ? `${r[0].name} (${r[0].id.slice(0, 12)})` : "No match"));
-  if (!headliner) throw new Error(`Qloo could not find an artist called "${input.headliner}".`);
+  const resolved = await step(`Resolve "${input.headliner}"`, "qloo", "GET /search", async () => {
+    const results = await qloo.searchEntity(input.headliner, "urn:entity:artist");
+    const chosen = input.headlinerId ? results.find((r) => r.id === input.headlinerId) : undefined;
+    return { total: results.length, ...(chosen ? { pick: chosen, candidates: [] } : resolveHeadliner(input.headliner, results)) };
+  }, (r) => r.pick ? `${r.pick.name} (${r.pick.id.slice(0, 12)})${r.total > 1 ? `, chosen from ${r.total} matches` : ""}` : r.candidates.length ? `${r.candidates.length} possible matches, asking which one` : "No match");
+  if (!resolved.pick && resolved.candidates.length && !opts.autoPick) {
+    emit({ type: "choose", query: input.headliner, candidates: resolved.candidates });
+    return null;
+  }
+  const headliner = resolved.pick ?? resolved.candidates[0];
+  if (!headliner) throw new Error(`Qloo has no artist called "${input.headliner}". Check the spelling or try their full name.`);
+  input = { ...input, headlinerId: headliner.id };
   const sig = [headliner.id];
 
   const local = await step(`Artists this audience loves in ${input.city}`, "qloo", "GET /v2/insights filter.type=artist + filter.location.query", () =>

@@ -23,7 +23,8 @@ export async function getOrBuildFeatured(slug: string): Promise<Brief | null> {
   if (cached) return cached;
   let p = inflight.get(slug);
   if (!p) {
-    p = buildBrief(f.input, () => {}, { id: featuredId(slug), featured: f.title }).then(async (b) => {
+    p = buildBrief(f.input, () => {}, { id: featuredId(slug), featured: f.title, autoPick: true }).then(async (b) => {
+      if (!b) throw new Error(`Featured brief ${slug} could not resolve its headliner.`);
       await saveBrief(b);
       return b;
     }).finally(() => inflight.delete(slug));

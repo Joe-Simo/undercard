@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { modes } from "@/lib/env";
-import { buildBrief, sizeBand } from "@/lib/pipeline";
+import { buildBrief, resolveHeadliner, sizeBand } from "@/lib/pipeline";
 import { getBrief } from "@/lib/store";
-import type { BriefEvent } from "@/lib/types";
+import type { BriefEvent, Entity } from "@/lib/types";
 
 describe("brief pipeline (demo mode)", () => {
   it("runs with Qloo and the LLM mocked", () => {
@@ -12,6 +12,7 @@ describe("brief pipeline (demo mode)", () => {
   it("builds a complete brief from one headliner and one city", async () => {
     const events: BriefEvent[] = [];
     const brief = await buildBrief({ headliner: "Khruangbin", city: "Nashville", capacity: 500 }, (e) => events.push(e));
+    if (!brief) throw new Error("expected a brief");
 
     expect(brief.openers.length).toBeGreaterThan(0);
     expect(brief.partners.places.length).toBeGreaterThan(0);
@@ -20,6 +21,26 @@ describe("brief pipeline (demo mode)", () => {
     expect(brief.trace.every((s) => s.status === "ok")).toBe(true);
     expect(events.some((e) => e.type === "step")).toBe(true);
     expect(JSON.stringify(brief)).not.toContain("\u2014");
+  });
+
+  it("asks which one when a name matches several artists, then builds the one picked", async () => {
+    const events: BriefEvent[] = [];
+    expect(await buildBrief({ headliner: "Nirvana", city: "Seattle", capacity: 400 }, (e) => events.push(e))).toBeNull();
+    const choose = events.find((e) => e.type === "choose");
+    if (choose?.type !== "choose") throw new Error("expected a choose event");
+    expect(choose.candidates.map((c) => c.description)).toEqual(["Grunge band from Aberdeen, WA", "Psychedelic pop duo from London"]);
+
+    const picked = await buildBrief({ headliner: "Nirvana", headlinerId: choose.candidates[1].id, city: "Seattle", capacity: 400 }, () => {});
+    expect(picked?.headliner.id).toBe(choose.candidates[1].id);
+    expect(picked?.input.headlinerId).toBe(choose.candidates[1].id);
+  });
+
+  it("resolves a single exact match without asking", () => {
+    const e = (id: string, name: string): Entity => ({ id, name, type: "urn:entity:artist" });
+    expect(resolveHeadliner("wednesday", [e("a", "Wednesday"), e("b", "Wednesday 13")]).pick?.id).toBe("a");
+    expect(resolveHeadliner("The National", [e("a", "The National")]).pick?.id).toBe("a");
+    expect(resolveHeadliner("big", [e("a", "Big Thief"), e("b", "Big Star")]).candidates).toHaveLength(2);
+    expect(resolveHeadliner("japanse brekfast", [e("a", "Japanese Breakfast")]).candidates).toHaveLength(1);
   });
 
   it("matches popularity to room size", () => {
