@@ -49,3 +49,6 @@ CLAUDE.md
 
 # copied at install time
 /public/maplibre
+
+# precomputed featured briefs (Qloo-derived, shipped with deploys, never committed)
+/data/featured

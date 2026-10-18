@@ -44,7 +44,7 @@ Without keys the app runs in demo mode: Qloo responses are simulated with invent
 
 ## Stack
 
-Next.js 16, React 19, Tailwind 4, shadcn/ui, MapLibre GL with CARTO basemaps, zod. The LLM layer is any OpenAI-compatible endpoint: OpenRouter free models by default (NVIDIA Nemotron 3 Ultra, with Gemma 4 and Nemotron 3 Super as fallbacks), or Groq, GitHub Models, or Gemini. Every LLM response is cached by prompt hash, retried with backoff on rate limits, and falls back to templates. Briefs live in a private Vercel Blob store.
+Next.js 16, React 19, Tailwind 4, shadcn/ui, MapLibre GL with CARTO basemaps, zod. The LLM layer is any OpenAI-compatible endpoint: OpenRouter free models by default (NVIDIA Nemotron 3 Ultra, with Gemma 4 and Nemotron 3 Super as fallbacks), or Groq, GitHub Models, or Gemini. Every LLM response is cached by prompt hash, retried with backoff on rate limits, and falls back to templates. Featured briefs are precomputed with `pnpm featured` and shipped with the deployment; other briefs are cached on the server.
 
 ## Limitations
 
