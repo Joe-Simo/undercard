@@ -52,3 +52,17 @@ describe("brief pipeline (demo mode)", () => {
     expect(await getBrief("does-not-exist")).toBeNull();
   });
 });
+
+describe("chat on a featured brief", () => {
+  it("forks a new brief so the featured one stays as shipped", async () => {
+    const { runChat } = await import("@/lib/chat");
+    const featured = await buildBrief({ headliner: "Khruangbin", city: "Nashville", capacity: 2500 }, () => {}, { id: "f-test-featured", featured: "Test", autoPick: true });
+    if (!featured) throw new Error("expected a brief");
+    const result = await runChat(featured, "go smaller", () => {});
+    expect(result.brief.id).not.toBe("f-test-featured");
+    expect(result.brief.featured).toBeUndefined();
+    expect(result.redirect).toBe(`/brief/${result.brief.id}`);
+    expect(featured.featured).toBe("Test");
+    expect(featured.chat).toHaveLength(0);
+  });
+});

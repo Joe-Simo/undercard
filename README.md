@@ -43,7 +43,7 @@ Every call uses only parameters documented in Qloo's reference ([docs-public](ht
 
 Location parameters follow the docs: `filter.location.*` is documented for places, destinations, and heatmaps; other entity types are localized with `signal.location.query`.
 
-Qloo data never enters this repository. Responses are cached privately on the server. Featured briefs are built ahead of time into `data/featured/` (gitignored) and shipped only inside the deployment; a test fails if any Qloo-derived file is ever tracked.
+Qloo data never enters this repository. Responses are cached privately on the server. Featured briefs are built ahead of time into `data/featured/` (gitignored) and shipped only inside the deployment; a test fails if any Qloo-derived file is ever tracked. Every other brief, and every edit to it, is saved to a private Vercel Blob store (when `BLOB_READ_WRITE_TOKEN` is set), so a shared link opens on any server instance. Editing a featured brief forks a new brief, so the featured ones stay as shipped.
 
 ## Gut vs Graph benchmark
 
@@ -65,7 +65,7 @@ Undercard is an MCP server (Streamable HTTP, stateless) at `/api/mcp`, with the 
 | --- | --- |
 | `build_show_brief` | Headliner, city, and capacity in; a ranked bill and supporting notes out. Ambiguous names return `needs_choice`; call again with `headliner_id`. |
 | `get_show_brief` | Read a saved or featured brief by id. |
-| `ask_undercard` | Edit or question a brief in plain English. City or capacity changes return a new brief id. |
+| `ask_undercard` | Edit or question a brief in plain English. City or capacity changes, and edits to a featured brief, return a new brief id. |
 | `list_featured_briefs` | Example briefs that are always available. |
 
 ```json

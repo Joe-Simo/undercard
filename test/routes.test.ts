@@ -10,7 +10,7 @@ describe("api routes", () => {
   it("GET /api/status reports modes", async () => {
     const res = GET();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ modes: { qloo: "mock", llm: "mock", llmProvider: "mock" } });
+    expect(await res.json()).toEqual({ modes: { qloo: "mock", llm: "mock", llmProvider: "mock" }, storage: "local" });
   });
 
   it("POST /api/brief rejects a bad request", async () => {

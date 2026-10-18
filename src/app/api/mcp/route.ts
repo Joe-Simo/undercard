@@ -72,7 +72,7 @@ const handler = createMcpHandler(
       },
       async ({ brief_id }, ctx) => {
         const brief = await loadBrief(brief_id);
-        return brief ? text(briefForAgents(brief, originOf(ctx.http?.req))) : fail(`No brief with id "${brief_id}". Demo briefs expire; featured briefs (list_featured_briefs) are always available.`);
+        return brief ? text(briefForAgents(brief, originOf(ctx.http?.req))) : fail(`No brief with id "${brief_id}". Check the id; featured briefs (list_featured_briefs) are always available.`);
       },
     );
 
@@ -81,7 +81,7 @@ const handler = createMcpHandler(
       {
         title: "Ask Undercard about a brief",
         description:
-          "Edit or question a brief in plain English, e.g. 'swap opener 2', 'go smaller and more local', 'what if Omaha, NE?', 'try a 1200-cap room', or 'why is the first pick on top?'. Every change is re-checked against Qloo. City or capacity changes create a new brief and return its new_brief_id.",
+          "Edit or question a brief in plain English, e.g. 'swap opener 2', 'go smaller and more local', 'what if Omaha, NE?', 'try a 1200-cap room', or 'why is the first pick on top?'. Every change is re-checked against Qloo. City or capacity changes, and any edit to a featured brief, create a new brief and return its new_brief_id.",
         inputSchema: z.object({
           brief_id: z.string().regex(/^[a-z0-9-]{4,60}$/),
           message: z.string().trim().min(1).max(500),

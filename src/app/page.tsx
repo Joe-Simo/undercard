@@ -4,12 +4,10 @@ import { BriefForm } from "@/components/undercard/brief-form";
 import { modes } from "@/lib/env";
 import { ArrowRight, Star } from "lucide-react";
 import { FEATURED } from "@/lib/featured";
-import { listBriefs } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const briefs = await listBriefs();
   return (
     <>
       <ModeBanner modes={modes()} />
@@ -29,7 +27,7 @@ export default async function Home() {
             <div className="mt-10"><BriefForm /></div>
           </div>
         </section>
-        <section className="mx-auto max-w-6xl px-4 pb-12">
+        <section className="mx-auto max-w-6xl px-4 pb-20">
           <h2 className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-muted-foreground"><Star className="size-4 text-brand" /> Featured briefs</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             {FEATURED.map((f) => (
@@ -41,20 +39,6 @@ export default async function Home() {
             ))}
           </div>
         </section>
-        {briefs.length > 0 && (
-          <section className="mx-auto max-w-6xl px-4 pb-20">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Recent briefs</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {briefs.map((b) => (
-                <Link key={b.id} href={`/brief/${b.id}`} className="rounded-xl border border-border bg-card p-4 transition hover:border-brand/50">
-                  <p className="font-semibold">{b.headliner.name}</p>
-                  <p className="text-sm text-muted-foreground">{b.input.city} · {b.input.capacity} cap</p>
-                  <p className="mt-2 truncate text-xs text-muted-foreground">with {b.openers.slice(0, 2).map((o) => o.name).join(", ")}</p>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
       </main>
     </>
   );

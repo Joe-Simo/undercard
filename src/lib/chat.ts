@@ -114,5 +114,11 @@ export async function runChat(brief: Brief, message: string, emit: (e: BriefEven
   ];
   next.chat = [...(brief.chat ?? []), ...msgs];
   next.trace = [...(brief.trace ?? []), ...steps.map((s) => ({ ...s, id: randomUUID() }))];
+  // Featured briefs stay as shipped for every visitor: an edit forks a new brief with its own link.
+  if (brief.featured) {
+    next.id = randomUUID().slice(0, 8);
+    delete next.featured;
+    redirect = `/brief/${next.id}`;
+  }
   return { brief: next, redirect };
 }
