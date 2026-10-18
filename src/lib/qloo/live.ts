@@ -97,7 +97,7 @@ export class LiveQlooClient implements QlooClient {
   }
 }
 
-function toEntity(r: Json): Entity {
+export function toEntity(r: Json): Entity {
   const props = (r.properties ?? {}) as Json;
   const q = (r.query ?? {}) as Json;
   const img = (props.image as Json | undefined)?.url as string | undefined;
@@ -110,9 +110,17 @@ function toEntity(r: Json): Entity {
     tags: ((r.tags as Json[] | undefined) ?? []).slice(0, 5).map((t) => String(t.name ?? "")).filter(Boolean),
     image: img,
     address: props.address as string | undefined,
-    // Field names vary by entity type, so take the first short human-readable line that exists.
-    description: firstString(r.disambiguation, props.short_description, props.description)?.slice(0, 140),
+    // Field names vary by entity type, so take the first short human-readable line that exists:
+    // top-level `disambiguation`, then the English entry of `properties.short_descriptions`
+    // (an array of { value, languages } in Qloo's samples), then a plain description.
+    description: firstString(r.disambiguation, englishShort(props.short_descriptions), props.short_description, props.description)?.slice(0, 140),
   };
+}
+
+export function englishShort(list: unknown) {
+  if (!Array.isArray(list)) return undefined;
+  const rows = list as { value?: unknown; languages?: unknown }[];
+  return (rows.find((d) => Array.isArray(d.languages) && d.languages.includes("en")) ?? rows[0])?.value;
 }
 
 function firstString(...values: unknown[]) {

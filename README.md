@@ -88,7 +88,9 @@ Without keys the app runs in demo mode: Qloo responses are simulated with invent
 pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-The tests run the full pipeline, the "Which one?" step, the API routes, the MCP tools, the daily allowance, and the benchmark scoring rule in demo mode, with no keys and no network.
+The tests run the full pipeline, the "Which one?" step, the API routes, the MCP tools, the daily allowance, brief storage, the live-check harness, and the benchmark scoring rule in demo mode, with no keys and no network.
+
+With a Qloo key in `.env.local`, `pnpm live-check` calls every Qloo endpoint above once, checks the exact fields the client reads (descriptions, affinity, popularity, heatmap cells, the compare shape, and whether location and popularity filters take effect), prints PASS, WARN, or FAIL for each, and then runs the benchmark. `--skip-benchmark` spends no LLM quota.
 
 ## Stack
 

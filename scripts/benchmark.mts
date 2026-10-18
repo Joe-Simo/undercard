@@ -8,6 +8,7 @@
  * Per-case detail contains Qloo data, so it is written to data/benchmark-runs/ (gitignored) and only
  * aggregate scores are printed.
  */
+import "./load-env.mts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { CASES } from "@/lib/benchmark/cases";
 import { RULE, scorePicks } from "@/lib/benchmark/score";
