@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { runChat } from "@/lib/chat";
-import { allow, clientKey } from "@/lib/ratelimit";
+import { clientKey, spend } from "@/lib/ratelimit";
 import { getBrief, saveBrief } from "@/lib/store";
 import type { BriefEvent } from "@/lib/types";
 
@@ -14,7 +14,8 @@ export async function POST(req: Request, ctx: RouteContext<"/api/brief/[id]/chat
   if (!brief) return Response.json({ error: "Brief not found." }, { status: 404 });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Say something first." }, { status: 400 });
-  if (!allow(`chat:${clientKey(req)}`, 20, 10 * 60_000)) return Response.json({ error: "Slow down a little. Try again in a few minutes." }, { status: 429 });
+  const gate = await spend("chat", clientKey(req));
+  if (!gate.ok) return Response.json({ limited: gate.limited }, { status: 429 });
   const enc = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {

@@ -2,10 +2,9 @@ import { createMcpHandler, getPublicOrigin } from "mcp-handler";
 import { z } from "zod";
 import { briefForAgents } from "@/lib/agent-view";
 import { runChat } from "@/lib/chat";
-import { modes } from "@/lib/env";
 import { FEATURED, featuredId, getOrBuildFeatured } from "@/lib/featured";
 import { buildBrief } from "@/lib/pipeline";
-import { allow, clientKey } from "@/lib/ratelimit";
+import { clientKey, spend } from "@/lib/ratelimit";
 import { getBrief, saveBrief } from "@/lib/store";
 import type { Brief, BriefEvent } from "@/lib/types";
 
@@ -42,11 +41,13 @@ const handler = createMcpHandler(
       },
       async ({ headliner, city, capacity, headliner_id }, ctx) => {
         const req = ctx.http?.req;
-        if (modes().qloo === "live" && !allow(`brief:${keyOf(req)}`, 6, 10 * 60_000)) return fail("Demo limit reached (6 briefs per 10 minutes). Use get_show_brief on a featured brief from list_featured_briefs meanwhile.");
+        const gate = await spend("brief", keyOf(req));
+        if (!gate.ok) return fail(`${gate.limited.title} ${gate.limited.message} Use list_featured_briefs and get_show_brief meanwhile.`);
         let choice: Extract<BriefEvent, { type: "choose" }> | undefined;
         try {
           const brief = await buildBrief({ headliner, city, capacity, headlinerId: headliner_id }, (e) => { if (e.type === "choose") choice = e; });
           if (!brief) {
+            gate.refund();
             return text({
               status: "needs_choice",
               message: `"${headliner}" matches more than one artist in Qloo. Ask the user which one, then call build_show_brief again with the same headliner text and the chosen headliner_id.`,
@@ -91,7 +92,8 @@ const handler = createMcpHandler(
         const req = ctx.http?.req;
         const brief = await loadBrief(brief_id);
         if (!brief) return fail(`No brief with id "${brief_id}".`);
-        if (!allow(`chat:${keyOf(req)}`, 20, 10 * 60_000)) return fail("Too many follow-ups. Try again in a few minutes.");
+        const gate = await spend("chat", keyOf(req));
+        if (!gate.ok) return fail(`${gate.limited.title} ${gate.limited.message}`);
         try {
           const result = await runChat(brief, message, () => {});
           await saveBrief(result.brief);

@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { modes } from "@/lib/env";
+import { FEATURED } from "@/lib/featured";
 import { buildBrief } from "@/lib/pipeline";
-import { allow, clientKey } from "@/lib/ratelimit";
+import { clientKey, spend } from "@/lib/ratelimit";
 import { saveBrief } from "@/lib/store";
 import type { BriefEvent } from "@/lib/types";
 
@@ -18,7 +18,8 @@ const Body = z.object({
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Enter a headliner, a city, and a capacity between 50 and 100,000." }, { status: 400 });
-  if (modes().qloo === "live" && !allow(`brief:${clientKey(req)}`, 6, 10 * 60_000)) return Response.json({ error: "Demo limit reached. Try a featured brief." }, { status: 429 });
+  const gate = await spend("brief", clientKey(req));
+  if (!gate.ok) return Response.json({ limited: gate.limited, featured: FEATURED.map(({ slug, title, blurb }) => ({ slug, title, blurb })) }, { status: 429 });
   const enc = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
       try {
         const brief = await buildBrief(parsed.data, emit);
         if (brief) await saveBrief(brief);
+        else gate.refund();
       } catch (err) {
         emit({ type: "error", message: err instanceof Error ? err.message : String(err) });
       }

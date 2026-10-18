@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { readNdjson } from "@/lib/ndjson";
 import type { BriefEvent, Entity, TraceStep } from "@/lib/types";
+import { LimitNote, type LimitInfo } from "./limit-note";
 import { TraceList } from "./trace-list";
 
 type Choice = { query: string; candidates: Entity[] };
@@ -20,6 +21,7 @@ export function BriefForm() {
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState<Choice | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [limit, setLimit] = useState<LimitInfo | null>(null);
 
   /** headlinerId pins one artist; query must be the search that produced it so the server can find it again. */
   async function run(headlinerId?: string, query = form.headliner) {
@@ -27,11 +29,14 @@ export function BriefForm() {
     setSteps([]);
     setChoice(null);
     setError(null);
+    setLimit(null);
     let finished = false;
     try {
       const res = await fetch("/api/brief", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, headliner: query, headlinerId }) });
       if (!res.ok || !res.body) {
-        setError((await res.json().catch(() => ({}))).error ?? "Something went wrong. Try again in a moment.");
+        const data = await res.json().catch(() => ({}));
+        if (data.limited) setLimit(data as LimitInfo);
+        else setError(data.error ?? "Something went wrong. Try again in a moment.");
         return;
       }
       await readNdjson<BriefEvent>(res, (ev) => {
@@ -97,6 +102,8 @@ export function BriefForm() {
           <CircleAlert className="mt-0.5 size-4 shrink-0" /> {error}
         </p>
       )}
+
+      {limit && <LimitNote info={limit} />}
 
       {steps.length > 0 && !choice && (
         <div className="mt-4 border-t border-border pt-3" aria-live="polite"><TraceList steps={steps} /></div>
