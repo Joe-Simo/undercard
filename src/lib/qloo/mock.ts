@@ -27,6 +27,26 @@ const POOL: Record<string, string[]> = {
   "urn:entity:destination": ["Sample City"],
 };
 
+/**
+ * Search fixtures for names that match more than one artist, so the "Which one?" step can be built and
+ * tested before the key arrives. Names and descriptions are real and factual; no numbers are attached.
+ */
+const AMBIGUOUS: Record<string, { id: string; name: string; description: string }[]> = {
+  nirvana: [
+    { id: "mock-nirvana-aberdeen", name: "Nirvana", description: "Grunge band from Aberdeen, WA" },
+    { id: "mock-nirvana-london", name: "Nirvana", description: "Psychedelic pop duo from London" },
+  ],
+  big: [
+    { id: "mock-big-thief", name: "Big Thief", description: "Indie folk band from Brooklyn, NY" },
+    { id: "mock-big-star", name: "Big Star", description: "Power pop band from Memphis, TN" },
+    { id: "mock-big-boi", name: "Big Boi", description: "Rapper from Atlanta, GA" },
+  ],
+  kings: [
+    { id: "mock-kings-of-leon", name: "Kings of Leon", description: "Rock band from Nashville, TN" },
+    { id: "mock-kings-of-convenience", name: "Kings of Convenience", description: "Indie folk duo from Bergen, Norway" },
+  ],
+};
+
 const NEARBY: Record<string, { city: string; lat: number; lng: number }[]> = {
   default: [
     { city: "Kansas City, MO", lat: 39.0997, lng: -94.5786 },
@@ -45,7 +65,9 @@ export class MockQlooClient implements QlooClient {
 
   async searchEntity(query: string, type: EntityType): Promise<Entity[]> {
     await sleep(150);
-    return [{ id: `mock-${slug(query)}`, name: query, type, popularity: 0.9, tags: ["simulated"] }];
+    const fixture = AMBIGUOUS[query.trim().toLowerCase()];
+    if (fixture) return fixture.map((f) => ({ ...f, type, tags: ["simulated"] }));
+    return [{ id: `mock-${slug(query)}`, name: query.trim(), type, popularity: 0.9, tags: ["simulated"] }];
   }
 
   async insights(opts: { type: EntityType; signalEntities: string[]; locationQuery?: string; take?: number; popularityMax?: number; popularityMin?: number }): Promise<Entity[]> {

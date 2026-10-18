@@ -48,7 +48,7 @@ Without keys the app runs in demo mode: Qloo responses are simulated with invent
 pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-The smoke tests run the full brief pipeline and the API routes in demo mode, with no keys and no network. CI runs the same four steps on every push.
+The smoke tests run the full brief pipeline and the API routes in demo mode, with no keys and no network.
 
 ## Stack
 

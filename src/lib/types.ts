@@ -2,6 +2,8 @@ export type Mode = "live" | "mock";
 
 export interface ShowInput {
   headliner: string;
+  /** Qloo entity id the user picked when the name matched several artists. */
+  headlinerId?: string;
   city: string;
   capacity: number;
   date?: string;
@@ -16,6 +18,8 @@ export interface Entity {
   tags?: string[];
   image?: string;
   address?: string;
+  /** Short disambiguating line, e.g. "Grunge band from Aberdeen, WA". */
+  description?: string;
 }
 
 export type SizeBand = "right-size" | "stretch" | "too big" | "too small";
@@ -86,6 +90,7 @@ export interface TraceStep {
 export type BriefEvent =
   | { type: "step"; step: TraceStep }
   | { type: "done"; brief: Brief }
+  | { type: "choose"; query: string; candidates: Entity[] }
   | { type: "error"; message: string };
 
 export interface Overlap {
