@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { env } from "./env";
 import { writeJson } from "./llm";
-import { buildBrief, makeTracer, overlapFor, rankBySize } from "./pipeline";
+import { buildBrief, describeLlm, makeTracer, overlapFor, rankBySize } from "./pipeline";
 import { getQloo } from "./qloo";
 import type { Brief, BriefEvent, ChatMessage, OpenerPick } from "./types";
 
@@ -50,20 +50,22 @@ export async function runChat(brief: Brief, message: string, emit: (e: BriefEven
     headliner: brief.headliner.name,
     openers: brief.openers.map((o, i) => ({ slot: i + 1, name: o.name, affinity: o.affinity, sizeBand: o.sizeBand, overlap: o.overlap })),
     routing: brief.routing.map((r) => r.city),
-    places: brief.partners.places.map((p) => p.name),
-    brands: brief.partners.brands.map((b) => b.name),
-    podcasts: brief.adPlan.podcasts.map((p) => p.name),
+    places: brief.partners.places.map((p) => ({ name: p.name, affinity: p.affinity })),
+    brands: brief.partners.brands.map((b) => ({ name: b.name, affinity: b.affinity })),
+    podcasts: brief.adPlan.podcasts.map((p) => ({ name: p.name, affinity: p.affinity })),
+    tv: brief.adPlan.tv.map((t) => ({ name: t.name, affinity: t.affinity })),
+    bench: (brief.bench ?? []).slice(0, 5).map((b) => ({ name: b.name, affinity: b.affinity, sizeBand: b.sizeBand })),
     audience: brief.audience.summary,
   });
 
   const plan = await step("Plan the edit", "llm", undefined, () =>
     writeJson({
-      system: "You are Undercard, a talent-buying agent. Decide which single action fulfils the user's request about this show brief. Tools: swap_opener (replace one opener with the next best Qloo candidate), smaller (re-rank toward less famous acts), bigger (toward bigger draws), change_city, change_capacity, answer (answer a question using ONLY the brief JSON; never invent names or numbers).",
+      system: "You are Undercard, a talent-buying agent. Decide which single action fulfils the user's request about this show brief. Tools: swap_opener (replace one opener with the next best Qloo candidate), smaller (re-rank toward less famous acts), bigger (toward bigger draws), change_city, change_capacity, answer (answer a question using ONLY the brief JSON; affinity is 0..1 audience over-index from Qloo, higher means a better fit; never invent names or numbers). Keep replies under 80 words.",
       prompt: `Brief: ${summary}\nUser: ${message}`,
       schema: Plan,
       mock: () => mockPlan(message, brief),
       maxTokens: 600,
-    }), (r) => r.value.action).then((r) => r.value);
+    }), (r) => `${r.value.action} · ${describeLlm(r)}`).then((r) => r.value);
 
   const next: Brief = structuredClone(brief);
   next.bench ??= [];
@@ -83,7 +85,7 @@ export async function runChat(brief: Brief, message: string, emit: (e: BriefEven
     else {
       const [scored] = await rescore([inn]);
       next.openers[idx] = scored;
-      reply = `Swapped ${out.name} for ${scored.name}, the next best Qloo match that fits the room.${reply ? ` ${reply}` : ""}`;
+      reply = `Swapped ${out.name} for ${scored.name}, the next best Qloo match that fits the room.`;
     }
   } else if (plan.action === "smaller" || plan.action === "bigger") {
     const ideal = brief.input.capacity <= 300 ? 0.55 : brief.input.capacity <= 800 ? 0.68 : brief.input.capacity <= 2500 ? 0.8 : 0.9;

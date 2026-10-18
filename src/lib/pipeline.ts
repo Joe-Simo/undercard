@@ -54,6 +54,12 @@ export function makeTracer(mocked: boolean, llmMocked: boolean, emit: (e: BriefE
   return { steps, step };
 }
 
+export function describeLlm(w: { mocked: boolean; fallback?: string; provider: string; model: string; ms: number; cached?: boolean }) {
+  if (w.fallback) return `LLM unavailable (${w.fallback}), used template`;
+  if (w.mocked) return "Templated";
+  return `${w.provider} ${w.model.replace(/:free$/, "")}${w.cached ? " (cached)" : ""}, ${w.ms} ms`;
+}
+
 const Writeup = z.object({
   openers: z.array(z.object({ name: z.string(), rationale: z.string() })),
   social: z.string(),
@@ -108,7 +114,7 @@ export async function buildBrief(input: ShowInput, emit: (e: BriefEvent) => void
         tagline: `${headliner.name} + ${ordered[0]?.name ?? "friends"}: one night only.`,
         adSummary: `Lead with ${podcasts[0]?.name ?? "podcast"} and ${tv[0]?.name ?? "TV"} audiences; ask ${brands[0]?.name ?? "a brand partner"} about a sponsorship.`,
       }),
-    }), (w) => `${w.fallback ? "Provider failed, used template" : w.mocked ? "Templated" : `${w.provider} ${w.model}`}, ${w.ms} ms`);
+    }), describeLlm);
 
   const gut = await step("Gut check: ask the LLM alone (no Qloo)", "llm", undefined, () =>
     writeJson({
@@ -116,7 +122,7 @@ export async function buildBrief(input: ShowInput, emit: (e: BriefEvent) => void
       prompt: `Headliner: ${headliner.name}. City: ${input.city}. Venue capacity: ${input.capacity}. Name 5 openers.`,
       schema: GutCheck,
       mock: () => ({ picks: ["(simulated) the most famous similar act", "(simulated) a stadium-size band", "(simulated) a generic genre pick"] }),
-    }), (g) => `${g.value.picks.length} picks`);
+    }), (g) => `${g.value.picks.length} picks, ${describeLlm(g)}`);
 
   const rationale = new Map(writeup.value.openers.map((o) => [o.name, o.rationale]));
   const openers: OpenerPick[] = ordered.map((o) => ({ ...o, overlap: overlaps.get(o.id)?.score, sharedTags: overlaps.get(o.id)?.sharedTags, rationale: rationale.get(o.name) ?? "" }));

@@ -36,7 +36,7 @@ All calls go to `https://hackathon.api.qloo.com` with the `X-Api-Key` header. Re
 
 ```bash
 pnpm install
-cp .env.example .env.local   # add QLOO_API_KEY and one LLM key (GROQ_API_KEY recommended)
+cp .env.example .env.local   # add QLOO_API_KEY and one LLM key (OPENROUTER_API_KEY recommended)
 pnpm dev
 ```
 
@@ -44,7 +44,7 @@ Without keys the app runs in demo mode: Qloo responses are simulated with invent
 
 ## Stack
 
-Next.js 16, React 19, Tailwind 4, shadcn/ui, MapLibre GL with CARTO basemaps, zod. The LLM layer is any OpenAI-compatible endpoint (Groq, GitHub Models, or Gemini).
+Next.js 16, React 19, Tailwind 4, shadcn/ui, MapLibre GL with CARTO basemaps, zod. The LLM layer is any OpenAI-compatible endpoint: OpenRouter free models by default (NVIDIA Nemotron 3 Ultra, with Gemma 4 and Nemotron 3 Super as fallbacks), or Groq, GitHub Models, or Gemini. Every LLM response is cached by prompt hash, retried with backoff on rate limits, and falls back to templates. Briefs live in a private Vercel Blob store.
 
 ## Limitations
 
