@@ -32,7 +32,7 @@ export function briefForAgents(b: Brief, origin: string) {
     audience: b.audience.summary,
     copy: b.copy,
     gut_vs_graph: { llm_only_picks: b.gutCheck.llmOnly, note: b.gutCheck.note },
-    qloo_calls: b.trace?.filter((s) => s.tool === "qloo").length ?? 0,
+    qloo_steps: b.trace?.filter((s) => s.tool === "qloo").length ?? 0,
     recent_chat: (b.chat ?? []).slice(-4).map((m) => ({ role: m.role, text: m.text })),
   };
 }

@@ -17,7 +17,7 @@ const Body = z.object({
 
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return Response.json({ error: "Headliner, city, and capacity are required." }, { status: 400 });
+  if (!parsed.success) return Response.json({ error: "Enter a headliner, a city, and a capacity between 50 and 100,000." }, { status: 400 });
   if (modes().qloo === "live" && !allow(`brief:${clientKey(req)}`, 6, 10 * 60_000)) return Response.json({ error: "Demo limit reached. Try a featured brief." }, { status: 429 });
   const enc = new TextEncoder();
   const stream = new ReadableStream({

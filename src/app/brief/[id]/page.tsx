@@ -36,7 +36,7 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
   const { id } = await props.params;
   const b = (await getBrief(id)) ?? (id.startsWith("f-") ? await getOrBuildFeatured(id.slice(2)) : null);
   if (!b) notFound();
-  const qlooCalls = b.trace?.filter((s) => s.tool === "qloo").length ?? 0;
+  const qlooSteps = b.trace?.filter((s) => s.tool === "qloo").length ?? 0;
   return (
     <>
       <div className="print:hidden"><ModeBanner modes={modes()} /></div>
@@ -159,7 +159,7 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
           </details>
         )}
         <p className="mt-8 text-center text-xs text-muted-foreground print:mt-5 print:text-left">
-          <span className="hidden print:inline">Built from {qlooCalls} Qloo API calls{b.sample ? " (simulated in demo mode)" : ""}. </span>
+          <span className="hidden print:inline">Built from {qlooSteps} Qloo API steps{b.sample ? " (simulated in demo mode)" : ""}. </span>
           Qloo results describe aggregate taste affinities, not predictions about any individual.
         </p>
       </main>
