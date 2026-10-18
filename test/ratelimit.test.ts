@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/brief/route";
-import { freshState, take } from "@/lib/ratelimit";
+import { freshState, readAllowance, take } from "@/lib/ratelimit";
 
 const lim = { brief: 3, chat: 8, llmCalls: 40 };
 
@@ -43,6 +43,28 @@ describe("daily allowance", () => {
     } finally {
       delete process.env.OPENROUTER_API_KEY;
       delete process.env.UNDERCARD_BRIEFS_PER_VISITOR;
+    }
+  });
+
+  it("follows the visitor across server instances with a signed cookie", async () => {
+    process.env.OPENROUTER_API_KEY = "test-not-a-key";
+    process.env.UNDERCARD_BRIEFS_PER_VISITOR = "1";
+    // No network in tests: the fake provider answers like a bad key, so the brief falls back to templates.
+    vi.stubGlobal("fetch", async () => new Response("{}", { status: 401 }));
+    try {
+      const body = JSON.stringify({ headliner: "Wednesday", city: "Asheville", capacity: 300 });
+      const first = await POST(new Request("http://localhost/api/brief", { method: "POST", headers: { "Content-Type": "application/json", "x-real-ip": "198.51.100.1" }, body }));
+      expect(first.status).toBe(200);
+      await first.text();
+      const cookie = first.headers.get("set-cookie")!.split(";")[0];
+      expect(readAllowance(new Request("http://x", { headers: { cookie } })).brief).toBe(1);
+      expect(readAllowance(new Request("http://x", { headers: { cookie: cookie.replace(/.$/, "x") } })).brief).toBe(0);
+      const second = await POST(new Request("http://localhost/api/brief", { method: "POST", headers: { "Content-Type": "application/json", "x-real-ip": "198.51.100.2", cookie }, body }));
+      expect(second.status).toBe(429);
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+      delete process.env.UNDERCARD_BRIEFS_PER_VISITOR;
+      vi.unstubAllGlobals();
     }
   });
 });

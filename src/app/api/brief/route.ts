@@ -18,7 +18,7 @@ const Body = z.object({
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Enter a headliner, a city, and a capacity between 50 and 100,000." }, { status: 400 });
-  const gate = await spend("brief", clientKey(req));
+  const gate = await spend("brief", clientKey(req), req);
   if (!gate.ok) return Response.json({ limited: gate.limited, featured: FEATURED.map(({ slug, title, blurb }) => ({ slug, title, blurb })) }, { status: 429 });
   const enc = new TextEncoder();
   const stream = new ReadableStream({
@@ -34,5 +34,5 @@ export async function POST(req: Request) {
       controller.close();
     },
   });
-  return new Response(stream, { headers: { "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" } });
+  return new Response(stream, { headers: { "Content-Type": "application/x-ndjson", "Cache-Control": "no-store", ...(gate.cookie ? { "Set-Cookie": gate.cookie } : {}) } });
 }

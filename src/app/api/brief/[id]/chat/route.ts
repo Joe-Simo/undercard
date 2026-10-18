@@ -14,7 +14,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/brief/[id]/chat
   if (!brief) return Response.json({ error: "Brief not found." }, { status: 404 });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Say something first." }, { status: 400 });
-  const gate = await spend("chat", clientKey(req));
+  const gate = await spend("chat", clientKey(req), req);
   if (!gate.ok) return Response.json({ limited: gate.limited }, { status: 429 });
   const enc = new TextEncoder();
   const stream = new ReadableStream({
@@ -30,5 +30,5 @@ export async function POST(req: Request, ctx: RouteContext<"/api/brief/[id]/chat
       controller.close();
     },
   });
-  return new Response(stream, { headers: { "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" } });
+  return new Response(stream, { headers: { "Content-Type": "application/x-ndjson", "Cache-Control": "no-store", ...(gate.cookie ? { "Set-Cookie": gate.cookie } : {}) } });
 }

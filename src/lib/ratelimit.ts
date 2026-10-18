@@ -1,12 +1,15 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { env, modes } from "./env";
 
 /**
  * Daily allowance for the public demo, so one visitor (or one busy day) cannot spend
- * the free LLM quota for everyone. Counts live in memory and in /tmp, reset at UTC
- * midnight (when free model quotas reset), and only apply when a paid or quota-limited
- * provider is actually in use. Local demo mode stays unlimited.
+ * the free LLM quota for everyone. Counts live in memory and in /tmp per server instance,
+ * plus a signed cookie that follows the visitor across instances. They reset at UTC
+ * midnight (when free model quotas reset) and only apply when a metered provider is in
+ * use. Local demo mode stays unlimited. If the shared quota still runs out upstream, the
+ * LLM layer falls back to templates, so a brief never dead-ends.
  */
 export type Kind = "brief" | "chat";
 
@@ -47,9 +50,10 @@ export const COPY: Record<Kind, Record<Limited["reason"], Omit<Limited, "reason"
   },
 };
 
-/** Pure check used by spend() and tests. Mutates the given state only when allowed. */
-export function take(s: State, kind: Kind, visitor: string, lim = limits()): Gate {
+/** Pure check used by spend() and tests. `seen` is what the visitor's cookie says they already used today. */
+export function take(s: State, kind: Kind, visitor: string, lim = limits(), seen = 0): Gate {
   const v = (s.visitors[visitor] ??= { brief: 0, chat: 0 });
+  v[kind] = Math.max(v[kind], seen);
   if (v[kind] >= lim[kind]) return { ok: false, limited: { reason: "visitor", ...COPY[kind].visitor } };
   if (s.llm + COST[kind] > lim.llmCalls) return { ok: false, limited: { reason: "global", ...COPY[kind].global } };
   v[kind]++;
@@ -60,12 +64,35 @@ export const freshState = (): State => ({ day: today(), llm: 0, visitors: {} });
 
 const metered = () => env.llm().name !== "mock" || modes().qloo === "live";
 
-export async function spend(kind: Kind, visitor: string): Promise<Gate> {
+const COOKIE = "uc_allowance";
+const secret = () => `undercard-allowance:${env.llm().key ?? "local"}`;
+const sign = (v: string) => createHmac("sha256", secret()).update(v).digest("base64url").slice(0, 22);
+
+/** Reads `day.brief.chat.sig`; anything stale, malformed, or unsigned counts as zero. */
+export function readAllowance(req: Request): Record<Kind, number> {
+  const raw = req.headers.get("cookie")?.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`))?.[1];
+  const [day, b, c, sig] = (raw ? decodeURIComponent(raw) : "").split(".");
+  const body = `${day}.${b}.${c}`;
+  const good = sig && day === today() && sig.length === 22 && timingSafeEqual(Buffer.from(sig), Buffer.from(sign(body)));
+  return good ? { brief: Number(b) || 0, chat: Number(c) || 0 } : { brief: 0, chat: 0 };
+}
+function allowanceCookie(used: Record<Kind, number>) {
+  const body = `${today()}.${used.brief}.${used.chat}`;
+  const secure = process.env.VERCEL ? "; Secure" : "";
+  return `${COOKIE}=${encodeURIComponent(`${body}.${sign(body)}`)}; Path=/; Max-Age=93600; HttpOnly; SameSite=Lax${secure}`;
+}
+
+export type Spent = Gate & { cookie?: string };
+
+export async function spend(kind: Kind, visitor: string, req?: Request): Promise<Spent> {
   if (!metered()) return { ok: true, refund: () => {} };
   const s = await load();
-  const gate = take(s, kind, visitor);
+  const used = req ? readAllowance(req) : { brief: 0, chat: 0 };
+  const gate = take(s, kind, visitor, limits(), used[kind]);
   persist();
-  return gate.ok ? { ok: true, refund: () => { gate.refund(); persist(); } } : gate;
+  if (!gate.ok) return gate;
+  const cookie = req ? allowanceCookie({ ...used, [kind]: used[kind] + 1 }) : undefined;
+  return { ok: true, cookie, refund: () => { gate.refund(); persist(); } };
 }
 
 export function clientKey(req: Request) {
