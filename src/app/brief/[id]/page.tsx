@@ -28,7 +28,7 @@ export async function generateMetadata(props: PageProps<"/brief/[id]">): Promise
   if (!b) return { title: "Show brief | Undercard" };
   // The title doubles as the default file name when the brief is saved as a PDF.
   const title = `${titleOf(b)}: Undercard show brief`;
-  const description = `Openers, routing, partners, and ad plan for a ${b.input.capacity}-cap room, built on Qloo taste data${b.sample ? " (simulated sample data)" : ""}.`;
+  const description = `Who opens for ${b.headliner.name} in a ${b.input.capacity}-cap room in ${b.input.city}, ranked on Qloo taste data${b.sample ? " (simulated sample data)" : ""}.`;
   return { title, description, openGraph: { title, description, type: "article" } };
 }
 
@@ -50,15 +50,15 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4 print:mt-2">
           <div className="min-w-0">
             <p className="text-sm text-brand">{b.featured ? "Featured brief" : "Show brief"}{b.sample ? " · simulated sample data" : ""}</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-balance md:text-4xl">{b.headliner.name}</h1>
-            <p className="mt-1 text-muted-foreground">{b.headliner.description ? `${b.headliner.description} · ` : ""}{b.input.city} · {b.input.capacity.toLocaleString("en-US")}-cap room</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-balance md:text-4xl">Who opens for {b.headliner.name}</h1>
+            <p className="mt-1 text-muted-foreground">{b.input.capacity.toLocaleString("en-US")}-cap room in {b.input.city}{b.headliner.description ? ` · ${b.headliner.description}` : ""}</p>
           </div>
-          {b.copy.tagline && <blockquote className="max-w-md rounded-xl border border-border bg-card px-4 py-3 text-sm italic">&ldquo;{b.copy.tagline}&rdquo;</blockquote>}
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.5fr_1fr] print:mt-5 print:block print:space-y-5">
           <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="flex items-center gap-2 font-semibold"><Mic2 className="size-4 text-brand" /> Recommended undercard</h2>
+            <h2 className="flex items-center gap-2 font-semibold"><Mic2 className="size-4 text-brand" /> The bill, ranked</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Ranked by how strongly {b.headliner.name}&apos;s audience in {b.input.city} likes each act, then sized for a {b.input.capacity.toLocaleString("en-US")}-cap room.</p>
             {b.openers.length ? (
               <ol className="mt-4 space-y-3">
                 {b.openers.map((o, i) => (
@@ -87,6 +87,18 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
             ) : (
               <Empty>Qloo returned no artists for this audience in {b.input.city}. Try a larger nearby city, or ask Undercard to go bigger.</Empty>
             )}
+            {!!b.bench?.length && (
+              <div className="mt-5 border-t border-border pt-4">
+                <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Also considered</h3>
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {b.bench.slice(0, 8).map((e) => (
+                    <li key={e.id} className="inline-flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 text-xs">
+                      {e.name}<span className={cn("rounded-full px-1.5 text-[10px]", BAND[e.sizeBand])}>{e.sizeBand}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
           <div className="space-y-6">
             <div className="print:hidden">
@@ -96,7 +108,12 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
           </div>
         </div>
 
-        <section className="mt-6 rounded-2xl border border-border bg-card p-5 print:mt-5">
+        <div className="mt-12 border-t border-border pt-6 print:mt-6">
+          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Supporting notes</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Context for the booking decision: who this crowd is, where else it lives, and where to reach it.</p>
+        </div>
+
+        <section className="mt-4 rounded-2xl border border-border bg-card p-5 print:mt-3">
           <h2 className="flex items-center gap-2 font-semibold"><MapPin className="size-4 text-brand" /> Where this taste lives</h2>
           <div className="mt-4 grid gap-5 lg:grid-cols-[1.6fr_1fr] print:grid-cols-[1.4fr_1fr]">
             {b.center ? <RouteMap brief={{ center: b.center, heat: b.heat ?? [], routing: b.routing, input: b.input }} /> : <div />}
@@ -142,8 +159,9 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
             </div>
           </section>
           <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-semibold">Ad plan and copy</h2>
+            <h2 className="font-semibold">Promotion and copy</h2>
             {b.adPlan.summary && <p className="mt-2 text-sm">{b.adPlan.summary}</p>}
+            {b.copy.tagline && <p className="mt-3 text-sm italic">&ldquo;{b.copy.tagline}&rdquo;</p>}
             {b.copy.social && (
               <>
                 <p className="mt-4 text-xs uppercase tracking-wider text-muted-foreground">Social post</p>

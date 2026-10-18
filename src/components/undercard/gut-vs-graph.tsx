@@ -8,7 +8,8 @@ export function GutVsGraph({ brief }: { brief: Brief }) {
   const [mode, setMode] = useState<"graph" | "gut">("graph");
   const graph = brief.openers.map((o) => `${o.name} (affinity ${Math.round((o.affinity ?? 0) * 100)}, ${o.sizeBand})`);
   const gut = brief.gutCheck.llmOnly;
-  const graphNote = "Ranked by what this headliner's audience in this city actually loves, filtered for room size.";
+  const graphNote = "Ranked by Qloo affinity with this headliner's audience in this city, then sized for the room.";
+  const gutNote = "The same question asked of the model with no Qloo data. Compare the two lists side by side.";
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
@@ -23,12 +24,12 @@ export function GutVsGraph({ brief }: { brief: Brief }) {
       </div>
       <div className="print:hidden">
         <List items={mode === "graph" ? graph : gut} />
-        <p className="mt-3 text-xs text-muted-foreground">{mode === "graph" ? graphNote : brief.gutCheck.note}</p>
+        <p className="mt-3 text-xs text-muted-foreground">{mode === "graph" ? graphNote : gutNote}</p>
       </div>
       {/* On paper both answers sit side by side, since there is no toggle to press. */}
       <div className="hidden gap-4 print:grid print:grid-cols-2">
         <div><p className="mt-3 text-xs font-semibold uppercase tracking-wider">With Qloo</p><List items={graph} /><p className="mt-2 text-xs text-muted-foreground">{graphNote}</p></div>
-        <div><p className="mt-3 text-xs font-semibold uppercase tracking-wider">LLM alone</p><List items={gut} /><p className="mt-2 text-xs text-muted-foreground">{brief.gutCheck.note}</p></div>
+        <div><p className="mt-3 text-xs font-semibold uppercase tracking-wider">LLM alone</p><List items={gut} /><p className="mt-2 text-xs text-muted-foreground">{gutNote}</p></div>
       </div>
     </section>
   );

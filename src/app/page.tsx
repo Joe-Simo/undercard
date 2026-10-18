@@ -24,7 +24,7 @@ export default async function Home() {
               Book the undercard your city actually wants.
             </h1>
             <p className="mt-5 max-w-2xl text-lg text-muted-foreground text-pretty">
-              One headliner and one city in. Out comes a show brief built on real taste data: openers who over-index locally and fit your room, where to route the tour, which bars and brands to partner with, and where to spend the ad money.
+              One headliner, one city, one room. Undercard ranks the openers this audience already loves in your market, sized for your capacity, and shows the evidence behind every pick. Change the bill in plain English. Routing and promotion notes come along as supporting detail.
             </p>
             <div className="mt-10"><BriefForm /></div>
           </div>

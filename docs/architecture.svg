@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" font-family="Inter, Helvetica, Arial, sans-serif">
+  <rect width="1200" height="640" fill="#0f0f12"/>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8a8a96"/></marker>
+  </defs>
+  <style>
+    .box{fill:#1a1a20;stroke:#34343e;stroke-width:1.5}
+    .hero{fill:#2a1a14;stroke:#ff7a45;stroke-width:1.5}
+    .t{fill:#f2f2f5;font-size:17px;font-weight:600}
+    .s{fill:#a3a3ad;font-size:13px}
+    .l{stroke:#8a8a96;stroke-width:1.5;fill:none;marker-end:url(#a)}
+    .h{fill:#ff7a45;font-size:12px;font-weight:600;letter-spacing:1.5px}
+  </style>
+  <text x="40" y="48" class="t" font-size="22">Undercard: how a show brief is built</text>
+  <text x="40" y="72" class="s">One headliner, one city, one room in. A ranked bill out, with every Qloo call shown.</text>
+
+  <text x="40" y="120" class="h">CALLERS</text>
+  <rect x="40" y="132" width="230" height="70" rx="12" class="box"/><text x="60" y="162" class="t">Talent buyer</text><text x="60" y="184" class="s">Web app, phone or desktop</text>
+  <rect x="40" y="222" width="230" height="70" rx="12" class="box"/><text x="60" y="252" class="t">Any AI agent</text><text x="60" y="274" class="s">MCP endpoint /api/mcp</text>
+
+  <text x="330" y="120" class="h">NEXT.JS ON VERCEL</text>
+  <rect x="330" y="132" width="250" height="160" rx="12" class="box"/>
+  <text x="350" y="162" class="t">API routes</text>
+  <text x="350" y="186" class="s">POST /api/brief (streamed steps)</text>
+  <text x="350" y="206" class="s">POST /api/brief/[id]/chat (edits)</text>
+  <text x="350" y="226" class="s">POST /api/mcp (4 tools)</text>
+  <text x="350" y="256" class="t" font-size="14">Daily allowance</text>
+  <text x="350" y="276" class="s">per visitor + shared LLM budget</text>
+
+  <rect x="640" y="132" width="250" height="160" rx="12" class="hero"/>
+  <text x="660" y="162" class="t">Booking pipeline</text>
+  <text x="660" y="186" class="s">1. Resolve the headliner</text>
+  <text x="660" y="206" class="s">2. Local taste: who this crowd loves</text>
+  <text x="660" y="226" class="s">3. Size each act for the room</text>
+  <text x="660" y="246" class="s">4. Audience overlap per opener</text>
+  <text x="660" y="266" class="s">5. Write rationale + Gut check</text>
+
+  <text x="950" y="120" class="h">SERVICES</text>
+  <rect x="950" y="132" width="210" height="160" rx="12" class="box"/>
+  <text x="970" y="162" class="t">Qloo API</text>
+  <text x="970" y="186" class="s">GET /search</text>
+  <text x="970" y="206" class="s">GET /v2/insights (artist,</text>
+  <text x="970" y="224" class="s">place, brand, podcast, TV,</text>
+  <text x="970" y="242" class="s">heatmap, demographics)</text>
+  <text x="970" y="262" class="s">GET /v2/analysis/compare</text>
+
+  <rect x="950" y="322" width="210" height="110" rx="12" class="box"/>
+  <text x="970" y="352" class="t">LLM (free tier)</text>
+  <text x="970" y="376" class="s">OpenRouter free models</text>
+  <text x="970" y="396" class="s">cache, retry, fallback models,</text>
+  <text x="970" y="414" class="s">then templates</text>
+
+  <rect x="640" y="322" width="250" height="110" rx="12" class="box"/>
+  <text x="660" y="352" class="t">Private server storage</text>
+  <text x="660" y="376" class="s">Briefs: memory + /tmp</text>
+  <text x="660" y="396" class="s">Featured briefs: shipped with</text>
+  <text x="660" y="414" class="s">the deploy, never in git</text>
+
+  <path class="l" d="M270,167 H330"/>
+  <path class="l" d="M270,257 H330"/>
+  <path class="l" d="M580,212 H640"/>
+  <path class="l" d="M890,212 H950"/>
+  <path class="l" d="M890,270 C920,300 920,360 950,372"/>
+  <path class="l" d="M765,292 V322"/>
+
+  <rect x="40" y="480" width="1120" height="120" rx="12" class="box"/>
+  <text x="60" y="512" class="t">What the buyer sees</text>
+  <text x="60" y="538" class="s">The bill, ranked: five openers with local affinity, audience overlap, popularity, and a size band for the room, plus who else was considered.</text>
+  <text x="60" y="560" class="s">Gut vs Graph: the same question answered by the model with no Qloo data, side by side. Plain-English edits re-check Qloo before changing the bill.</text>
+  <text x="60" y="582" class="s">Supporting notes: audience shape, where else this taste lives, pre-show partners, sponsors, and ad buys.</text>
+</svg>
