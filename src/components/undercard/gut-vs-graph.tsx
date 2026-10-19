@@ -7,9 +7,13 @@ import { cn } from "@/lib/utils";
 export function GutVsGraph({ brief }: { brief: Brief }) {
   const [mode, setMode] = useState<"graph" | "gut">("graph");
   const graph = brief.openers.map((o) => `${o.name} (affinity ${Math.round((o.affinity ?? 0) * 100)}, ${o.sizeBand})`);
-  const gut = brief.gutCheck.llmOnly;
-  const graphNote = "Ranked by Qloo affinity with this headliner's audience in this city, then sized for the room.";
-  const gutNote = "The same question asked of the model with no Qloo data. Compare the two lists side by side.";
+  // Mark each model-only pick that Qloo also returned for this audience, city, and room.
+  const key = (s: string) => s.toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const known = new Set([...brief.openers, ...(brief.bench ?? [])].map((e) => key(e.name)));
+  const gut = brief.gutCheck.llmOnly.map((n) => (known.has(key(n)) ? `${n} (also on this brief)` : n));
+  const hits = brief.gutCheck.llmOnly.filter((n) => known.has(key(n))).length;
+  const graphNote = "Acts this audience likes most in this city, with the ones that fit the room first.";
+  const gutNote = `The same question asked of the model with no Qloo data. ${hits} of ${brief.gutCheck.llmOnly.length} picks are among the ${known.size} acts Qloo ranked for this brief.`;
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
