@@ -15,6 +15,7 @@ import { RULE, scorePicks } from "@/lib/benchmark/score";
 import { env, modes } from "@/lib/env";
 import { buildBrief } from "@/lib/pipeline";
 import { getQloo } from "@/lib/qloo";
+import { roomCeiling } from "@/lib/size";
 
 const dry = process.argv.includes("--dry-run");
 const m = modes();
@@ -33,7 +34,7 @@ const rows: Row[] = [];
 for (const c of CASES) {
   const brief = await buildBrief(c, () => {}, { autoPick: true });
   if (!brief) continue;
-  const ruler = await getQloo().insights({ type: "urn:entity:artist", signalEntities: [brief.headliner.id], locationQuery: c.city, take: 50 });
+  const ruler = await getQloo().insights({ type: "urn:entity:artist", signalEntities: [brief.headliner.id], locationQuery: c.city, take: 50, popularityMax: roomCeiling(c.capacity) });
   const graph = scorePicks(brief.openers.map((o) => o.name), ruler, c.capacity);
   const gut = scorePicks(brief.gutCheck.llmOnly, ruler, c.capacity);
   rows.push({ case: c, headliner: brief.headliner.name, llm: brief.llm, gutTemplated: brief.trace.some((s) => s.label.startsWith("Gut check") && s.mocked), graph, gut });
@@ -41,7 +42,7 @@ for (const c of CASES) {
 }
 
 const avg = (k: "graph" | "gut") => rows.reduce((s, r) => s + r[k].score, 0) / Math.max(1, rows.length);
-const summary = { ranAt: new Date().toISOString(), mode: dry ? "dry-run (mock data, not a result)" : "live", rule: RULE, cases: rows.length, graph: Number(avg("graph").toFixed(3)), gut: Number(avg("gut").toFixed(3)), gutTemplatedCases: rows.filter((r) => r.gutTemplated).length };
+const summary = { ranAt: new Date().toISOString(), mode: dry ? "dry-run (mock data, not a result)" : "live", rule: RULE, ruleVersion: 2, cases: rows.length, graph: Number(avg("graph").toFixed(3)), gut: Number(avg("gut").toFixed(3)), gutTemplatedCases: rows.filter((r) => r.gutTemplated).length };
 mkdirSync("data/benchmark-runs", { recursive: true });
 const file = `data/benchmark-runs/${summary.ranAt.replace(/[:.]/g, "-")}${dry ? "-dry" : ""}.json`;
 writeFileSync(file, JSON.stringify({ summary, rows }, null, 2));

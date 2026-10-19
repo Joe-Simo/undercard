@@ -5,7 +5,7 @@ import { findCity, nearestCity } from "./cities";
 import { env } from "./env";
 import { writeJson } from "./llm";
 import { getQloo, type EntityType } from "./qloo";
-import { sizeBand } from "./size";
+import { roomCeiling, sizeBand } from "./size";
 import type { Brief, BriefEvent, Entity, OpenerPick, Overlap, ShowInput, SizeBand, TraceStep } from "./types";
 
 export { sizeBand };
@@ -107,9 +107,17 @@ export async function buildBrief(input: ShowInput, emit: (e: BriefEvent) => void
   input = { ...input, headlinerId: headliner.id };
   const sig = [headliner.id];
 
-  const local = await step(`Artists this audience loves in ${input.city}`, "qloo", "GET /v2/insights filter.type=artist + signal.location.query", () =>
-    qloo.insights({ type: "urn:entity:artist", signalEntities: sig, locationQuery: input.city, take: 15 }),
-    (r) => `${r.length} affinity-ranked artists`);
+  const ceiling = roomCeiling(input.capacity);
+  const [top, roomSized] = await Promise.all([
+    step(`Artists this audience loves in ${input.city}`, "qloo", "GET /v2/insights filter.type=artist + signal.location.query", () =>
+      qloo.insights({ type: "urn:entity:artist", signalEntities: sig, locationQuery: input.city, take: 15 }),
+      (r) => `${r.length} affinity-ranked artists${r.locality ? `, Qloo matched ${r.locality}` : ""}`),
+    ceiling === undefined ? Promise.resolve([] as Entity[]) :
+      step(`Acts that fit a ${input.capacity.toLocaleString("en-US")}-cap room`, "qloo", `GET /v2/insights filter.type=artist + filter.popularity.max=${ceiling}`, () =>
+        qloo.insights({ type: "urn:entity:artist", signalEntities: sig, locationQuery: input.city, take: 15, popularityMax: ceiling }),
+        (r) => `${r.length} artists under popularity ${Math.round(ceiling * 100)}`),
+  ]);
+  const local = [...new Map([...roomSized, ...top].map((e) => [e.id, e])).values()];
 
   const heat = await step(`Where this taste concentrates`, "qloo", "GET /v2/insights filter.type=urn:heatmap", () =>
     qloo.heatmap({ signalEntities: sig, locationQuery: input.city, radiusMeters: 480_000 }), (r) => `${r.length} hotspots`);

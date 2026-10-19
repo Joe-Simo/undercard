@@ -58,7 +58,7 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.5fr_1fr] print:mt-5 print:block print:space-y-5">
           <section className="rounded-2xl border border-border bg-card p-5">
             <h2 className="flex items-center gap-2 font-semibold"><Mic2 className="size-4 text-brand" /> The bill, ranked</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Ranked by how strongly {b.headliner.name}&apos;s audience in {b.input.city} likes each act, then sized for a {b.input.capacity.toLocaleString("en-US")}-cap room.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Acts {b.headliner.name}&apos;s audience in {b.input.city} likes most, with the ones that fit a {b.input.capacity.toLocaleString("en-US")}-cap room first.</p>
             {b.openers.length ? (
               <ol className="mt-4 space-y-3">
                 {b.openers.map((o, i) => (
@@ -72,7 +72,7 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
                       {o.rationale && <p className="mt-1 text-sm text-muted-foreground">{o.rationale}</p>}
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground tabular-nums">
                         <Meter label="Local affinity" v={o.affinity} />
-                        <Meter label="Audience overlap" v={o.overlap} />
+                        <Meter label="Shared taste" v={o.overlap} title="Qloo compare: average score of the top 10 taste tags this act shares with the headliner" />
                         <Meter label="Popularity" v={o.popularity} />
                       </div>
                       {!!o.sharedTags?.length && (
@@ -185,8 +185,8 @@ export default async function BriefPage(props: PageProps<"/brief/[id]">) {
   );
 }
 
-function Meter({ label, v }: { label: string; v?: number }) {
-  return <span>{label} <strong className="text-foreground">{v == null ? "n/a" : Math.round(v * 100)}</strong></span>;
+function Meter({ label, v, title }: { label: string; v?: number; title?: string }) {
+  return <span title={title}>{label} <strong className="text-foreground">{v == null ? "n/a" : Math.round(v * 100)}</strong></span>;
 }
 
 function Empty({ children }: { children: React.ReactNode }) {

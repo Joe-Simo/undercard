@@ -2,6 +2,7 @@ import "server-only";
 import { normName } from "../benchmark/score";
 import { env } from "../env";
 import type { Entity } from "../types";
+import { resolveHeadliner } from "../pipeline";
 import { englishShort, LiveQlooClient } from "./live";
 import type { EntityType } from "./types";
 
@@ -15,7 +16,7 @@ export type Status = "pass" | "warn" | "fail";
 export type Check = { name: string; status: Status; detail: string };
 type Json = Record<string, unknown>;
 
-export const PROBE = { headliner: "Khruangbin", city: "Nashville, TN", ambiguous: "Nirvana" } as const;
+export const PROBE = { headliner: "Khruangbin", city: "Nashville, TN", ambiguous: "Nirvana", partial: "Bon Jov" } as const;
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const share = <T>(xs: T[], ok: (x: T) => boolean) => (xs.length ? xs.filter(ok).length / xs.length : 0);
@@ -57,7 +58,7 @@ export async function runLiveCheck(log: (c: Check) => void = () => {}): Promise<
   const missing = ["entity_id", "name"].filter((k) => typeof top[k] !== "string");
   add("GET /search", missing.length ? "fail" : "pass", missing.length ? `results[0] lacks ${missing.join(", ")}; shape ${shapeOf(top, 1)}` : `${results.length} results, entity_id and name present`);
   const props = (top.properties ?? {}) as Json;
-  const source = typeof top.disambiguation === "string" ? "disambiguation" : typeof englishShort(props.short_descriptions) === "string" ? "properties.short_descriptions" : typeof props.short_description === "string" ? "properties.short_description" : typeof props.description === "string" ? "properties.description" : null;
+  const source = typeof top.disambiguation === "string" && top.disambiguation !== top.name ? "disambiguation" : typeof englishShort(props.short_descriptions) === "string" ? "properties.short_descriptions" : typeof props.short_description === "string" ? "properties.short_description" : typeof props.description === "string" ? "properties.description" : null;
   add("Search description field", source ? "pass" : "warn", source ? `read from ${source}` : `none of disambiguation, properties.short_descriptions, properties.short_description, properties.description; "Which one?" chips will show names only. properties keys: ${Object.keys(props).join(", ") || "none"}`);
 
   const resolved = await attempt("Resolve headliner (client)", () => qloo.searchEntity(PROBE.headliner, "urn:entity:artist"));
@@ -65,10 +66,16 @@ export async function runLiveCheck(log: (c: Check) => void = () => {}): Promise<
   if (!headliner?.id) { add("Resolve headliner (client)", "fail", "the client parsed no entity id from /search"); return checks; }
   add("Resolve headliner (client)", normName(headliner.name) === normName(PROBE.headliner) ? "pass" : "warn", normName(headliner.name) === normName(PROBE.headliner) ? "exact name match, id parsed" : "first result is not an exact name match; check the resolver");
 
+  // A well-known name with namesakes should resolve to one artist; a partial name should ask "Which one?".
   const amb = await attempt("Which one? probe", () => qloo.searchEntity(PROBE.ambiguous, "urn:entity:artist"));
   if (amb) {
-    const exact = amb.filter((e) => normName(e.name) === normName(PROBE.ambiguous));
-    add("Which one? probe", exact.length >= 2 ? "pass" : "warn", `${exact.length} exact matches for "${PROBE.ambiguous}" (2 or more shows the chips)${exact.length >= 2 ? `, ${exact.filter((e) => e.description).length} with a description` : ""}`);
+    const r = resolveHeadliner(PROBE.ambiguous, amb);
+    add("Exact name resolves", r.pick ? "pass" : "warn", r.pick ? `"${PROBE.ambiguous}" resolves to one artist out of ${amb.length} results` : `"${PROBE.ambiguous}" asks Which one? with ${r.candidates.length} choices`);
+  }
+  const part = await attempt("Which one? probe", () => qloo.searchEntity(PROBE.partial, "urn:entity:artist"));
+  if (part) {
+    const r = resolveHeadliner(PROBE.partial, part);
+    add("Which one? probe", !r.pick && r.candidates.length >= 2 ? "pass" : "warn", !r.pick ? `"${PROBE.partial}" offers ${r.candidates.length} choices, ${r.candidates.filter((e) => e.description).length} with a description` : `"${PROBE.partial}" resolved without asking`);
   }
 
   // 2. GET /v2/insights for artists in a city: the ranked bill.

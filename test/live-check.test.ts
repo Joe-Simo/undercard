@@ -13,9 +13,10 @@ const artist = (i: number, pop: number, local: boolean) => ({ entity_id: `A${i}`
 function handle(url: URL) {
   const p = url.searchParams;
   if (url.pathname === "/search") {
+    // Hackathon server shape: one exact match per name, then partial matches; disambiguation repeats the name.
     const q = p.get("query") ?? "";
-    const n = q === "Nirvana" ? 2 : 1;
-    return { results: Array.from({ length: n }, (_, i) => ({ entity_id: `S${q}${i}`, name: q, popularity: 0.9, disambiguation: `Fixture description ${i}`, properties: { short_descriptions: [{ value: "fixture", languages: ["en"] }] } })) };
+    const names = q === "Bon Jov" ? ["Bon", "Bon Jovi Fixture"] : [q, `${q} Fixture Tribute`];
+    return { results: names.map((name, i) => ({ entity_id: `S${q}${i}`, name, popularity: 0.9, disambiguation: name, properties: { short_description: `Fixture description ${i}` } })) };
   }
   if (url.pathname === "/v2/analysis/compare")
     return quirks.compareShape === "tags" ? { success: true, results: { tags: [{ name: "Fixture Tag", query: { affinity: 0.7 } }, { name: "Other Tag", query: { affinity: 0.5 } }] } } : { success: true, results: { something: { else: 1 } } };
@@ -71,6 +72,29 @@ describe("live client field parsing", () => {
     const { toEntity } = await import("@/lib/qloo/live");
     expect(toEntity({ entity_id: "1", name: "A", disambiguation: "Band from Ohio" }).description).toBe("Band from Ohio");
     expect(toEntity({ entity_id: "1", name: "A", properties: { short_descriptions: [{ value: "banda", languages: ["es"] }, { value: "American band", languages: ["en"] }] } }).description).toBe("American band");
+    expect(toEntity({ entity_id: "1", name: "A", disambiguation: "A", properties: { short_description: "Indie band" } }).description).toBe("Indie band");
     expect(toEntity({ entity_id: "1", name: "A", popularity: 0.4, query: { affinity: 0.8 } })).toMatchObject({ popularity: 0.4, affinity: 0.8, description: undefined });
+  });
+});
+
+describe("Qloo location strings", () => {
+  it("spells out a trailing US state code and leaves everything else alone", async () => {
+    const { qlooLocation } = await import("@/lib/qloo/locality");
+    expect(qlooLocation("Lawrence, KS")).toBe("Lawrence, Kansas");
+    expect(qlooLocation("Richmond VA")).toBe("Richmond, Virginia");
+    expect(qlooLocation("Washington, DC")).toBe("Washington, District of Columbia");
+    expect(qlooLocation("Omaha, Nebraska")).toBe("Omaha, Nebraska");
+    expect(qlooLocation("London, UK")).toBe("London, UK");
+    expect(qlooLocation(undefined)).toBeUndefined();
+  });
+});
+
+describe("room ceiling", () => {
+  it("caps popularity for small rooms and not for arenas", async () => {
+    const { roomCeiling, sizeBand } = await import("@/lib/size");
+    expect(roomCeiling(350)).toBe(0.83);
+    expect(roomCeiling(300)).toBe(0.7);
+    expect(roomCeiling(3000)).toBeUndefined();
+    expect(sizeBand(300, roomCeiling(300))).toBe("stretch");
   });
 });

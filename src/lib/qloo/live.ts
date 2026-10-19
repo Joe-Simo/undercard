@@ -1,6 +1,7 @@
 import "server-only";
 import { env } from "../env";
 import type { AudienceShape, Entity, Overlap } from "../types";
+import { qlooLocation } from "./locality";
 import type { EntityType, HeatCell, QlooClient } from "./types";
 
 type Json = Record<string, unknown>;
@@ -23,11 +24,17 @@ export class LiveQlooClient implements QlooClient {
   private async get(path: string, params: Record<string, string | number | undefined>) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") qs.set(k, String(v));
-    const res = await fetch(`${env.qlooBaseUrl()}${path}?${qs}`, {
+    const call = () => fetch(`${env.qlooBaseUrl()}${path}?${qs}`, {
       headers: { "X-Api-Key": env.qlooKey()!, Accept: "application/json" },
       signal: AbortSignal.timeout(20_000),
       next: { revalidate: 60 * 60 * 24 },
     });
+    let res = await call();
+    // A burst of parallel calls can briefly hit the rate limit; one short retry covers it.
+    for (let i = 0; i < 2 && (res.status === 429 || res.status >= 500); i++) {
+      await new Promise((r) => setTimeout(r, 600 * (i + 1)));
+      res = await call();
+    }
     if (!res.ok) throw new Error(`Qloo ${res.status} on ${path}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
     return (await res.json()) as Json;
   }
@@ -41,20 +48,23 @@ export class LiveQlooClient implements QlooClient {
     const data = await this.get("/v2/insights", {
       "filter.type": opts.type,
       "signal.interests.entities": opts.signalEntities.join(","),
-      [opts.type === "urn:entity:place" || opts.type === "urn:entity:destination" ? "filter.location.query" : "signal.location.query"]: opts.locationQuery,
+      [opts.type === "urn:entity:place" || opts.type === "urn:entity:destination" ? "filter.location.query" : "signal.location.query"]: qlooLocation(opts.locationQuery),
       "filter.popularity.max": opts.popularityMax,
       "filter.popularity.min": opts.popularityMin,
       take: opts.take ?? 10,
     });
     const results = data.results as Json | undefined;
-    return ((results?.entities as Json[]) ?? []).map(toEntity);
+    // Qloo echoes the locality it matched; keep its full name so the trace can show where "this city" landed.
+    const loc = ((data.query as Json | undefined)?.localities as Json | undefined) ?? {};
+    const matched = ((loc.signal ?? loc.filter) as Json | undefined)?.disambiguation;
+    return Object.assign(((results?.entities as Json[]) ?? []).map(toEntity), { locality: typeof matched === "string" ? matched : undefined });
   }
 
   async heatmap(opts: { signalEntities: string[]; locationQuery: string; radiusMeters?: number }) {
     const data = await this.get("/v2/insights", {
       "filter.type": "urn:heatmap",
       "signal.interests.entities": opts.signalEntities.join(","),
-      "filter.location.query": opts.locationQuery,
+      "filter.location.query": qlooLocation(opts.locationQuery),
       "filter.location.radius": opts.radiusMeters,
     });
     const cells = ((data.results as Json | undefined)?.heatmap as Json[]) ?? [];
@@ -66,10 +76,11 @@ export class LiveQlooClient implements QlooClient {
   }
 
   /**
-   * Audience overlap between two entities: GET /v2/analysis/compare with the documented
+   * Shared taste between two entities: GET /v2/analysis/compare with the documented
    * `a.signal.interests.entities` and `b.signal.interests.entities` (reference/analysis-compare.md).
-   * The docs do not publish a response schema, so the parser accepts the shapes Qloo uses elsewhere
-   * (results.tags / results.entities with query.affinity or score). To verify live on key arrival.
+   * Verified live on the hackathon server (Oct 19): results.tags is the shared tags, sorted by
+   * query.score; results.a and results.b hold the tags only one side has. The score here is the mean
+   * query.score of the top 10 shared tags.
    */
   async compare(a: string, b: string): Promise<Overlap> {
     const data = await this.get("/v2/analysis/compare", {
@@ -111,9 +122,9 @@ export function toEntity(r: Json): Entity {
     image: img,
     address: props.address as string | undefined,
     // Field names vary by entity type, so take the first short human-readable line that exists:
-    // top-level `disambiguation`, then the English entry of `properties.short_descriptions`
+    // top-level `disambiguation` (skipped when it only repeats the name, as the hackathon server does), then the English entry of `properties.short_descriptions`
     // (an array of { value, languages } in Qloo's samples), then a plain description.
-    description: firstString(r.disambiguation, englishShort(props.short_descriptions), props.short_description, props.description)?.slice(0, 140),
+    description: firstString(r.disambiguation !== r.name ? r.disambiguation : undefined, englishShort(props.short_descriptions), props.short_description, props.description)?.slice(0, 140),
   };
 }
 

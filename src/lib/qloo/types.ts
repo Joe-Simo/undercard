@@ -30,7 +30,7 @@ export interface QlooClient {
     take?: number;
     popularityMax?: number;
     popularityMin?: number;
-  }): Promise<Entity[]>;
+  }): Promise<Entity[] & { locality?: string }>;
   /** Audience overlap between two entities (GET /v2/analysis/compare). */
   compare(a: string, b: string): Promise<Overlap>;
   heatmap(opts: { signalEntities: string[]; locationQuery: string; radiusMeters?: number }): Promise<HeatCell[]>;
